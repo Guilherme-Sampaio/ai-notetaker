@@ -14,7 +14,7 @@ export async function transcribeAudio(buffer: Buffer, mimeType: string): Promise
   try {
     const transcription = await openai.audio.transcriptions.create({
       file,
-      model: 'gpt-4o-mini-transcribe',
+      model: 'gpt-4o-transcribe',
     })
 
     console.log(`[transcribe] done — ${transcription.text.length} chars`)
