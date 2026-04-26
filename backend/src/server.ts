@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import { env } from './config/env.js'
 import { errorHandler } from './middleware/errorHandler.js'
+import summarizeRouter from './routes/summarize.routes.js'
 
 const app = express()
 
@@ -19,12 +20,16 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
 
+app.use('/api/summarize', summarizeRouter)
+
 app.use(errorHandler)
 
 const PORT = env.PORT
 
-app.listen(PORT, () => {
-  console.log(`Backend running on http://localhost:${PORT}`)
-})
+if (process.env['VITEST'] !== 'true') {
+  app.listen(PORT, () => {
+    console.log(`Backend running on http://localhost:${PORT}`)
+  })
+}
 
 export default app
