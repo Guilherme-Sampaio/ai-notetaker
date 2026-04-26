@@ -3,6 +3,7 @@ import cors from 'cors'
 import { env } from './config/env.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import summarizeRouter from './routes/summarize.routes.js'
+import notesRouter from './routes/notes.routes.js'
 
 const app = express()
 
@@ -21,6 +22,7 @@ app.get('/api/health', (_req, res) => {
 })
 
 app.use('/api/summarize', summarizeRouter)
+app.use('/api/notes', notesRouter)
 
 app.use(errorHandler)
 

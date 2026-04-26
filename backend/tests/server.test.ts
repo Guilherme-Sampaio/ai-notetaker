@@ -8,4 +8,11 @@ describe('server', () => {
     expect(res.status).toBe(200)
     expect(res.body).toEqual({ status: 'ok' })
   })
+
+  it('mounts GET /api/notes', async () => {
+    const res = await request(app).get('/api/notes')
+    expect(res.status).toBe(200)
+    expect(res.body).toHaveProperty('notes')
+    expect(Array.isArray(res.body.notes)).toBe(true)
+  })
 })
