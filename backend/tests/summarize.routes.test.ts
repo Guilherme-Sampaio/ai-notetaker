@@ -6,6 +6,12 @@ import summarizeRouter from '../src/routes/summarize.routes.js'
 
 vi.mock('../src/services/openai.provider.js', () => ({
   transcribeAudio: vi.fn().mockResolvedValue('fixture transcript'),
+  summarizeTranscript: vi.fn().mockResolvedValue({
+    keyDecisions: ['d1'],
+    upcomingDeadlines: [],
+    followUpTasks: [],
+    resourcesMentioned: [],
+  }),
 }))
 
 function buildApp() {
@@ -32,13 +38,21 @@ describe('POST /api/summarize/', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 200 with transcript for wav', async () => {
+  it('returns 200 with transcript and summary for wav', async () => {
     const app = buildApp()
     const res = await request(app)
       .post('/api/summarize/')
       .attach('audio', Buffer.from('fake'), { filename: 'clip.wav', contentType: 'audio/wav' })
 
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({ transcript: 'fixture transcript' })
+    expect(res.body).toEqual({
+      transcript: 'fixture transcript',
+      summary: {
+        keyDecisions: ['d1'],
+        upcomingDeadlines: [],
+        followUpTasks: [],
+        resourcesMentioned: [],
+      },
+    })
   })
 })

@@ -8,7 +8,7 @@ export async function handleSummarize(req: Request, res: Response, next: NextFun
     }
 
     const transcript = await transcribeAudio(req.file.buffer, req.file.mimetype)
-    const summary = await summarizeTranscript(transcript, req.body.customInstructions)
+    const summary = await summarizeTranscript(transcript, req.body?.customInstructions)
 
     res.json({ transcript, summary })
   } catch (err) {

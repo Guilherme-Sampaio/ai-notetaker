@@ -32,7 +32,7 @@ describe('transcribeAudio', () => {
     expect(text).toBe('mocked line')
     expect(transcriptionsCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'gpt-4o-mini-transcribe',
+        model: 'gpt-4o-transcribe',
       }),
     )
   })
