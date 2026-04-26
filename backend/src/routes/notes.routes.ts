@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { handleSaveNote, handleListNotes } from '../controllers/notes.controller.js'
+import { handleSaveNote, handleListNotes } from '../handlers/notes.handler.js'
 
 const router = Router()
 

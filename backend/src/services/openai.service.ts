@@ -1,9 +1,9 @@
 import OpenAI, { toFile } from 'openai'
 import { env } from '../config/env.js'
 import { AppError } from '../errors/AppError.js'
-import { SYSTEM_PROMPT, buildUserPrompt } from '../prompts/summarize.prompt.js'
-import { parseSummaryResponse } from '../prompts/summarize.validator.js'
-import type { SummaryOutput } from '../prompts/summarize.schema.js'
+import { SYSTEM_PROMPT, buildUserPrompt } from '../ai/summarize.prompt.js'
+import { parseSummaryResponse } from '../ai/summarize.validator.js'
+import type { SummaryOutput } from '../ai/summarize.schema.js'
 
 const openai = new OpenAI({ apiKey: env.OPENAI_API_KEY })
 

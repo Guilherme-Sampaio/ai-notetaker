@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { audioUpload } from '../middleware/upload.js'
-import { handleSummarize } from '../controllers/summarize.controller.js'
+import { handleSummarize } from '../handlers/summarize.handler.js'
 
 const router = Router()
 

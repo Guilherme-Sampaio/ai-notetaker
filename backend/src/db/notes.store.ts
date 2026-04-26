@@ -1,4 +1,4 @@
-import type { SummaryOutput } from '../prompts/summarize.schema.js'
+import type { SummaryOutput } from '../ai/summarize.schema.js'
 
 export type Note = {
   id: string

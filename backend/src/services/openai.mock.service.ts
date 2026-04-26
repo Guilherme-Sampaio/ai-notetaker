@@ -1,4 +1,4 @@
-import type { SummaryOutput } from '../prompts/summarize.schema.js'
+import type { SummaryOutput } from '../ai/summarize.schema.js'
 
 const MOCK_TRANSCRIPT =
   "So I wanted to follow up on a few things from our last meeting. " +
