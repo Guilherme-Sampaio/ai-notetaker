@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
-import { transcribeAudio } from '../services/openai.service.js'
+import { transcribeAudio } from '../services/openai.provider.js'
 
 export async function handleSummarize(req: Request, res: Response, next: NextFunction) {
   try {

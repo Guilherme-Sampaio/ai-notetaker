@@ -1,9 +1,9 @@
 import type { NextFunction, Request, Response } from 'express'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { handleSummarize } from '../src/controllers/summarize.controller.js'
-import { transcribeAudio } from '../src/services/openai.service.js'
+import { transcribeAudio } from '../src/services/openai.provider.js'
 
-vi.mock('../src/services/openai.service.js', () => ({
+vi.mock('../src/services/openai.provider.js', () => ({
   transcribeAudio: vi.fn(),
 }))
 
