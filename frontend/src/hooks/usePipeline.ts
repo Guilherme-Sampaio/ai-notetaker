@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
-import { summarizeAudio } from '../services/api'
+import { summarizeAudio } from '../services/summarize.api'
 import type { PipelineState } from '../types/pipeline.types'
 import { useRecorder } from './useRecorder'
 

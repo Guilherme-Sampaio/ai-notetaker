@@ -1,11 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { MemoryRouter } from 'react-router-dom'
 import { PipelineScreen } from '../../src/components/PipelineScreen'
 import { usePipeline } from '../../src/hooks/usePipeline'
 import type { UsePipelineReturn } from '../../src/hooks/usePipeline'
+import * as notesApi from '../../src/services/notes.api'
+
+const mockNavigate = vi.fn()
+
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>()
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  }
+})
 
 vi.mock('../../src/hooks/usePipeline', () => ({
   usePipeline: vi.fn(),
+}))
+
+vi.mock('../../src/services/notes.api', () => ({
+  saveNote: vi.fn(),
 }))
 
 const mockUsePipeline = vi.mocked(usePipeline)
@@ -24,27 +41,36 @@ function basePipeline(overrides: Partial<UsePipelineReturn> = {}): UsePipelineRe
   }
 }
 
+function renderScreen() {
+  return render(
+    <MemoryRouter>
+      <PipelineScreen />
+    </MemoryRouter>,
+  )
+}
+
 describe('PipelineScreen', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockNavigate.mockClear()
   })
 
   it('renders RecorderPanel when state is idle', () => {
     mockUsePipeline.mockReturnValue(basePipeline({ state: { status: 'idle' } }))
-    render(<PipelineScreen />)
+    renderScreen()
     expect(screen.getByRole('toolbar', { name: /Recording controls/i })).toBeInTheDocument()
     expect(screen.queryByText('Recording ready')).not.toBeInTheDocument()
   })
 
   it('renders RecorderPanel when state is recording', () => {
     mockUsePipeline.mockReturnValue(basePipeline({ state: { status: 'recording' } }))
-    render(<PipelineScreen />)
+    renderScreen()
     expect(screen.getByRole('toolbar', { name: /Recording controls/i })).toBeInTheDocument()
   })
 
   it('renders RecorderPanel when state is paused', () => {
     mockUsePipeline.mockReturnValue(basePipeline({ state: { status: 'paused' } }))
-    render(<PipelineScreen />)
+    renderScreen()
     expect(screen.getByRole('toolbar', { name: /Recording controls/i })).toBeInTheDocument()
   })
 
@@ -54,7 +80,7 @@ describe('PipelineScreen', () => {
         state: { status: 'error', stage: 'recording', message: 'Mic denied' },
       }),
     )
-    render(<PipelineScreen />)
+    renderScreen()
     expect(screen.getByRole('toolbar', { name: /Recording controls/i })).toBeInTheDocument()
   })
 
@@ -65,7 +91,7 @@ describe('PipelineScreen', () => {
         state: { status: 'review', blob, durationSeconds: 12 },
       }),
     )
-    render(<PipelineScreen />)
+    renderScreen()
     expect(screen.getByText('Recording ready')).toBeInTheDocument()
     expect(screen.getByLabelText(/Custom instructions/i)).toBeInTheDocument()
     expect(screen.queryByRole('toolbar', { name: /Recording controls/i })).not.toBeInTheDocument()
@@ -77,7 +103,7 @@ describe('PipelineScreen', () => {
         state: { status: 'processing' },
       }),
     )
-    render(<PipelineScreen />)
+    renderScreen()
     expect(screen.getByText('Recording ready')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Processing/i })).toBeDisabled()
     expect(
@@ -85,7 +111,7 @@ describe('PipelineScreen', () => {
     ).toBeInTheDocument()
   })
 
-  it('renders ReviewPanel for done status is not used by screen branch', () => {
+  it('renders NoteEditorPanel when state is done', () => {
     mockUsePipeline.mockReturnValue(
       basePipeline({
         state: {
@@ -100,7 +126,65 @@ describe('PipelineScreen', () => {
         },
       }),
     )
-    render(<PipelineScreen />)
-    expect(screen.getByRole('toolbar', { name: /Recording controls/i })).toBeInTheDocument()
+    renderScreen()
+    expect(screen.getByRole('heading', { name: /Review & Edit Summary/i })).toBeInTheDocument()
+    expect(screen.queryByRole('toolbar', { name: /Recording controls/i })).not.toBeInTheDocument()
+  })
+
+  it('navigates to /notes after save from done state', async () => {
+    const user = userEvent.setup()
+    vi.mocked(notesApi.saveNote).mockResolvedValueOnce({
+      id: 'n',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      transcript: 't',
+      summary: {
+        keyDecisions: [],
+        upcomingDeadlines: [],
+        followUpTasks: [],
+        resourcesMentioned: [],
+      },
+    })
+    mockUsePipeline.mockReturnValue(
+      basePipeline({
+        state: {
+          status: 'done',
+          transcript: 't',
+          summary: {
+            keyDecisions: [],
+            upcomingDeadlines: [],
+            followUpTasks: [],
+            resourcesMentioned: [],
+          },
+        },
+      }),
+    )
+    renderScreen()
+    await user.click(screen.getByRole('button', { name: 'Save note' }))
+    await waitFor(() => {
+      expect(mockNavigate).toHaveBeenCalledWith('/notes')
+    })
+  })
+
+  it('calls restart when Record again from done state', async () => {
+    const user = userEvent.setup()
+    const restart = vi.fn()
+    mockUsePipeline.mockReturnValue(
+      basePipeline({
+        restart,
+        state: {
+          status: 'done',
+          transcript: 't',
+          summary: {
+            keyDecisions: [],
+            upcomingDeadlines: [],
+            followUpTasks: [],
+            resourcesMentioned: [],
+          },
+        },
+      }),
+    )
+    renderScreen()
+    await user.click(screen.getByRole('button', { name: 'Record again' }))
+    expect(restart).toHaveBeenCalledTimes(1)
   })
 })

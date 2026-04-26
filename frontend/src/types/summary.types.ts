@@ -9,3 +9,10 @@ export interface ProcessResponse {
   transcript: string
   summary: SummaryOutput
 }
+
+export interface Note {
+  id: string
+  createdAt: string
+  transcript: string
+  summary: SummaryOutput
+}

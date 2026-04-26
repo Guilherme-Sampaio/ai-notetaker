@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { usePipeline } from '../../src/hooks/usePipeline'
-import * as apiModule from '../../src/services/api'
+import * as apiModule from '../../src/services/summarize.api'
 import { toast } from 'sonner'
 
 // Mock dependencies
@@ -11,7 +11,7 @@ vi.mock('sonner', () => ({
   },
 }))
 
-vi.mock('../../src/services/api', () => ({
+vi.mock('../../src/services/summarize.api', () => ({
   summarizeAudio: vi.fn(),
 }))
 

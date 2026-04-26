@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { summarizeAudio } from '../../src/services/api'
+import { summarizeAudio } from '../../src/services/summarize.api'
 
 describe('summarizeAudio', () => {
   let fetchMock: ReturnType<typeof vi.fn>
