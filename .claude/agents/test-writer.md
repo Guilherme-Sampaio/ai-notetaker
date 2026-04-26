@@ -1,7 +1,7 @@
 ---
 name: test-writer
 description: Use for writing unit tests. Invoke when the user asks to write, add, or improve tests for any file in this project.
-model: claude-sonnet-4-6
+model: claude-haiku-4-5
 tools:
   - Glob
   - Grep

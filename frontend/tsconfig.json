@@ -18,7 +18,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"]
-    }
+    },
+    "types": ["vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["src", "main.tsx", "App.tsx"]
+  "include": ["src", "main.tsx", "App.tsx", "tests/**/*.ts", "tests/**/*.tsx", "vite.config.ts"]
 }
