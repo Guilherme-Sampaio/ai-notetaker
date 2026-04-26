@@ -11,3 +11,7 @@ if (isMock) {
 export const transcribeAudio: typeof real.transcribeAudio = isMock
   ? mock.transcribeAudio
   : real.transcribeAudio
+
+export const summarizeTranscript: typeof real.summarizeTranscript = isMock
+  ? mock.summarizeTranscript
+  : real.summarizeTranscript

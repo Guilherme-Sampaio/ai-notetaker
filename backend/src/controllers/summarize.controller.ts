@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express'
-import { transcribeAudio } from '../services/openai.provider.js'
+import { summarizeTranscript, transcribeAudio } from '../services/openai.provider.js'
 
 export async function handleSummarize(req: Request, res: Response, next: NextFunction) {
   try {
@@ -8,8 +8,9 @@ export async function handleSummarize(req: Request, res: Response, next: NextFun
     }
 
     const transcript = await transcribeAudio(req.file.buffer, req.file.mimetype)
+    const summary = await summarizeTranscript(transcript, req.body.customInstructions)
 
-    res.json({ transcript })
+    res.json({ transcript, summary })
   } catch (err) {
     next(err)
   }
