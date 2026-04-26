@@ -31,7 +31,8 @@ describe('/api/notes', () => {
       const res = await request(app).post('/api/notes/').send({})
 
       expect(res.status).toBe(400)
-      expect(res.body.error).toBe('server_error')
+      expect(res.body.error).toBe('app_error')
+      expect(res.body.message).toBe('Invalid request body')
     })
 
     it('returns 201 with created note', async () => {

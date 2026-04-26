@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { AppError } from '../src/errors/AppError.js'
 import { handleSummarize } from '../src/controllers/summarize.controller.js'
 import { summarizeTranscript, transcribeAudio } from '../src/services/openai.provider.js'
 
@@ -31,9 +32,10 @@ describe('handleSummarize', () => {
     expect(transcribeAudio).not.toHaveBeenCalled()
     expect(summarizeTranscript).not.toHaveBeenCalled()
     expect(next).toHaveBeenCalledTimes(1)
-    const err = vi.mocked(next).mock.calls[0][0] as Error & { status?: number }
-    expect(err.status).toBe(400)
-    expect(err.message).toBe('No audio file provided')
+    const err = vi.mocked(next).mock.calls[0][0]
+    expect(err).toBeInstanceOf(AppError)
+    expect((err as AppError).status).toBe(400)
+    expect((err as AppError).message).toBe('No audio file provided')
   })
 
   it('returns transcript and summary when file is present', async () => {

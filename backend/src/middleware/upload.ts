@@ -1,4 +1,5 @@
 import multer from 'multer'
+import { AppError } from '../errors/AppError.js'
 
 const ALLOWED_MIME_TYPES = [
   'audio/webm',
@@ -15,7 +16,7 @@ export const audioUpload = multer({
     if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
       cb(null, true)
     } else {
-      cb(Object.assign(new Error(`Unsupported file type: ${file.mimetype}`), { status: 415 }))
+      cb(new AppError(`Unsupported file type: ${file.mimetype}`, 415))
     }
   },
 })

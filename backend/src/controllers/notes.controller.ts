@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
 import { z } from 'zod'
+import { AppError } from '../errors/AppError.js'
 import { SummaryOutputSchema } from '../prompts/summarize.schema.js'
 import { saveNote, listNotes } from '../services/notes.service.js'
 
@@ -12,7 +13,7 @@ export async function handleSaveNote(req: Request, res: Response, next: NextFunc
   try {
     const parsed = SaveNoteSchema.safeParse(req.body)
     if (!parsed.success) {
-      return next(Object.assign(new Error('Invalid request body'), { status: 400 }))
+      return next(new AppError('Invalid request body', 400))
     }
     const note = saveNote(parsed.data)
     res.status(201).json(note)

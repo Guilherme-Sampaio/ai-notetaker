@@ -262,6 +262,23 @@ describe('summarizeAudio', () => {
       await expect(summarizeAudio(audioBlob)).rejects.toThrow('Bad request body')
     })
 
+    it('should attach HTTP status to the thrown Error', async () => {
+      const audioBlob = new Blob(['audio data'], { type: 'audio/webm' })
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        text: vi.fn().mockResolvedValueOnce(JSON.stringify({ message: 'Unprocessable' })),
+      })
+      try {
+        await summarizeAudio(audioBlob)
+        expect.fail('expected rejection')
+      } catch (e) {
+        expect(e).toBeInstanceOf(Error)
+        expect((e as Error & { status?: number }).status).toBe(422)
+        expect((e as Error).message).toBe('Unprocessable')
+      }
+    })
+
     it('should handle 413 Payload Too Large', async () => {
       const audioBlob = new Blob(['audio data'], { type: 'audio/webm' })
 

@@ -6,7 +6,7 @@ import type { PipelineState } from '../../src/types/pipeline.types'
 
 describe('ReviewPanel', () => {
   let mockPipeline: Pick<UsePipelineReturn, 'submit' | 'discard'>
-  let mockState: Extract<PipelineState, { status: 'review' | 'processing' }>
+  let mockState: Extract<PipelineState, { status: 'review' }>
 
   beforeEach(() => {
     mockPipeline = {
@@ -65,6 +65,36 @@ describe('ReviewPanel', () => {
         />,
       )
       expect(screen.getByText(/Duration: 02:00/)).toBeInTheDocument()
+    })
+
+    it('should disable Send for processing when submitError is set', () => {
+      render(
+        <ReviewPanel
+          state={{
+            ...mockState,
+            submitError: 'Recording too short or no clear speech detected.',
+          }}
+          submit={mockPipeline.submit}
+          discard={mockPipeline.discard}
+        />,
+      )
+      const sendBtn = screen.getByRole('button', { name: /Send for processing/i }) as HTMLButtonElement
+      expect(sendBtn.disabled).toBe(true)
+    })
+
+    it('should keep Record again enabled when submitError is set', () => {
+      render(
+        <ReviewPanel
+          state={{
+            ...mockState,
+            submitError: 'Recording too short or no clear speech detected.',
+          }}
+          submit={mockPipeline.submit}
+          discard={mockPipeline.discard}
+        />,
+      )
+      const recordAgain = screen.getByRole('button', { name: /Record again/i }) as HTMLButtonElement
+      expect(recordAgain.disabled).toBe(false)
     })
 
     it('should display various duration times correctly', () => {
@@ -361,6 +391,7 @@ describe('ReviewPanel', () => {
       const liveRegion = container.querySelector('[aria-live="polite"]')
       expect(liveRegion).toBeInTheDocument()
       expect(liveRegion?.textContent).toContain('Transcribing')
+      expect(liveRegion?.textContent).toContain('Keep this tab open')
     })
 
     it('should disable Record again button', () => {

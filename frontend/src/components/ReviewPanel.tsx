@@ -12,6 +12,7 @@ type Props = Pick<UsePipelineReturn, 'submit' | 'discard'> & {
 export function ReviewPanel({ state, submit, discard }: Props) {
   const [instructions, setInstructions] = useState('')
   const isProcessing = state.status === 'processing'
+  const submitError = state.status === 'review' ? state.submitError : undefined
 
   return (
     <div className="flex flex-col items-center gap-8 py-12 px-6">
@@ -50,26 +51,30 @@ export function ReviewPanel({ state, submit, discard }: Props) {
       </div>
 
       {/* Actions */}
-      <div className="flex items-center gap-3 flex-wrap justify-center">
-        <ToolbarBtn
-          onClick={discard}
-          disabled={isProcessing}
-          icon={<ArrowLeft size={16} />}
-          label="Record again"
-        />
-        <ToolbarBtn
-          onClick={() => void submit(instructions)}
-          disabled={isProcessing}
-          icon={isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-          label={isProcessing ? 'Processing…' : 'Send for processing'}
-          primary
-        />
+      <div className="flex flex-col items-center gap-3 w-full max-w-md">
+        <div className="flex items-center gap-3 flex-wrap justify-center">
+          <ToolbarBtn
+            onClick={discard}
+            disabled={isProcessing}
+            icon={<ArrowLeft size={16} />}
+            label="Record again"
+            primary={!!submitError}
+          />
+          <ToolbarBtn
+            onClick={() => void submit(instructions)}
+            disabled={isProcessing || !!submitError}
+            icon={isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+            label={isProcessing ? 'Processing…' : 'Send for processing'}
+            primary={!submitError}
+          />
+        </div>
       </div>
 
       {isProcessing && (
-        <p aria-live="polite" className="text-sm text-muted-foreground">
-          Transcribing and summarizing your recording…
-        </p>
+        <div aria-live="polite" className="flex flex-col items-center gap-1 text-center">
+          <p className="text-sm text-muted-foreground">Transcribing and summarizing your recording…</p>
+          <p className="text-xs text-muted-foreground/70">Keep this tab open — closing it will cancel the process.</p>
+        </div>
       )}
     </div>
   )

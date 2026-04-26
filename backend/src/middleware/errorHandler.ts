@@ -1,12 +1,13 @@
 import type { ErrorRequestHandler } from 'express'
-
-// TODO: implement central error handler
-// Catches all errors passed via next(error)
-// Returns { error: string, message: string } with appropriate HTTP status
+import { AppError } from '../errors/AppError.js'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
-  const status = (err as { status?: number }).status ?? 500
-  const message = err instanceof Error ? err.message : 'Internal server error'
-  res.status(status).json({ error: 'server_error', message })
+  if (err instanceof AppError) {
+    res.status(err.status).json({ error: 'app_error', message: err.message })
+    return
+  }
+
+  console.error('[unhandled]', err)
+  res.status(500).json({ error: 'server_error', message: 'Something went wrong. Please try again.' })
 }

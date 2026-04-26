@@ -17,7 +17,7 @@ function EditableSection({ title, items, onChange }: EditableSectionProps) {
       <label className="text-sm font-medium text-foreground">{title}</label>
       <textarea
         value={items.join('\n')}
-        onChange={e => onChange(e.target.value.split('\n').filter(Boolean))}
+        onChange={e => onChange(e.target.value.split('\n'))}
         rows={3}
         placeholder="One item per line"
         className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -43,7 +43,12 @@ export function NoteEditorPanel({ transcript, summary, onSaved, onDiscard }: Pro
   const handleSave = async () => {
     setSaving(true)
     try {
-      await saveNote(transcript, { keyDecisions, upcomingDeadlines, followUpTasks, resourcesMentioned })
+      await saveNote(transcript, {
+        keyDecisions: keyDecisions.filter(Boolean),
+        upcomingDeadlines: upcomingDeadlines.filter(Boolean),
+        followUpTasks: followUpTasks.filter(Boolean),
+        resourcesMentioned: resourcesMentioned.filter(Boolean),
+      })
       toast.success('Note saved')
       onSaved()
     } catch {

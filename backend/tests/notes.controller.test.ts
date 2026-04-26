@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { AppError } from '../src/errors/AppError.js'
 import { handleListNotes, handleSaveNote } from '../src/controllers/notes.controller.js'
 import { listNotes, saveNote } from '../src/services/notes.service.js'
 
@@ -31,9 +32,10 @@ describe('notes.controller', () => {
 
       expect(saveNote).not.toHaveBeenCalled()
       expect(next).toHaveBeenCalledTimes(1)
-      const err = vi.mocked(next).mock.calls[0][0] as Error & { status?: number }
-      expect(err.status).toBe(400)
-      expect(err.message).toBe('Invalid request body')
+      const err = vi.mocked(next).mock.calls[0][0]
+      expect(err).toBeInstanceOf(AppError)
+      expect((err as AppError).status).toBe(400)
+      expect((err as AppError).message).toBe('Invalid request body')
     })
 
     it('returns 201 with saved note when body is valid', async () => {

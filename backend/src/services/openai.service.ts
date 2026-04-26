@@ -1,5 +1,6 @@
 import OpenAI, { toFile } from 'openai'
 import { env } from '../config/env.js'
+import { AppError } from '../errors/AppError.js'
 import { SYSTEM_PROMPT, buildUserPrompt } from '../prompts/summarize.prompt.js'
 import { parseSummaryResponse } from '../prompts/summarize.validator.js'
 import type { SummaryOutput } from '../prompts/summarize.schema.js'
@@ -19,10 +20,16 @@ export async function transcribeAudio(buffer: Buffer, mimeType: string): Promise
 
     console.log(`[transcribe] done — ${transcription.text.length} chars`)
 
+    const wordCount = transcription.text.trim().split(/\s+/).filter(Boolean).length
+    if (wordCount < 10) {
+      throw new AppError('Recording too short or no clear speech detected. Please record again and speak clearly.', 422)
+    }
+
     return transcription.text
   } catch (err) {
+    if (err instanceof AppError) throw err
     console.error('[transcribe] OpenAI error:', err)
-    throw Object.assign(new Error('Transcription failed. Please try again.'), { status: 502 })
+    throw new AppError('Transcription failed. Please try again.', 502)
   }
 }
 
@@ -62,10 +69,23 @@ export async function summarizeTranscript(
     const raw = completion.choices[0]?.message?.content ?? ''
     console.log(`[summarize] done — ${raw.length} chars`)
 
-    return parseSummaryResponse(raw)
+    const summary = parseSummaryResponse(raw)
+
+    const isEmpty =
+      summary.keyDecisions.length === 0 &&
+      summary.upcomingDeadlines.length === 0 &&
+      summary.followUpTasks.length === 0 &&
+      summary.resourcesMentioned.length === 0
+
+    if (isEmpty) {
+      throw new AppError("This recording doesn't appear to contain an advising session. No decisions, tasks, or deadlines were found.", 422)
+    }
+
+    return summary
   } catch (err) {
+    if (err instanceof AppError) throw err
     console.error('[summarize] OpenAI error:', err)
-    throw Object.assign(new Error('Summarization failed. Please try again.'), { status: 502 })
+    throw new AppError('Summarization failed. Please try again.', 502)
   }
 }
 

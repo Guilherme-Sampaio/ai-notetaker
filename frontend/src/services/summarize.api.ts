@@ -26,7 +26,7 @@ export async function summarizeAudio(
     } catch {
       message = 'Processing failed. Please try again.'
     }
-    throw new Error(message)
+    throw Object.assign(new Error(message), { status: res.status })
   }
 
   return res.json() as Promise<ProcessResponse>

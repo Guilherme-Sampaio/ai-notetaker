@@ -91,6 +91,36 @@ describe('NoteEditorPanel', () => {
     })
   })
 
+  it('filters empty lines from sections before save', async () => {
+    const user = userEvent.setup()
+    vi.mocked(notesApi.saveNote).mockResolvedValueOnce({
+      id: 'saved',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      transcript: 'hello',
+      summary,
+    })
+    render(
+      <MemoryRouter initialEntries={['/edit']}>
+        <Routes>
+          <Route path="/edit" element={<EditorRoute />} />
+          <Route path="/notes" element={<div>ok</div>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    const areas = screen.getAllByPlaceholderText('One item per line')
+    await user.clear(areas[2])
+    await user.type(areas[2], 'task one\n\ntask two')
+    await user.click(screen.getByRole('button', { name: 'Save note' }))
+    await waitFor(() => {
+      expect(notesApi.saveNote).toHaveBeenCalledWith(
+        'hello',
+        expect.objectContaining({
+          followUpTasks: ['task one', 'task two'],
+        }),
+      )
+    })
+  })
+
   it('calls onDiscard from Record again', async () => {
     const user = userEvent.setup()
     render(

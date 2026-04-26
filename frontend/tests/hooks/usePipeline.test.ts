@@ -363,6 +363,39 @@ describe('usePipeline', () => {
       expect(toast.error).toHaveBeenCalledWith('Processing failed', expect.any(Object))
       if (result.current.state.status === 'review') {
         expect(result.current.state.blob).toEqual(mockBlob)
+        expect(result.current.state.submitError).toBeUndefined()
+      }
+    })
+
+    it('should set submitError on review when API rejects with status 422', async () => {
+      const mockBlob = new Blob(['audio data'], { type: 'audio/webm' })
+      const msg = 'Recording too short or no clear speech detected.'
+      mockUseRecorder.mockReturnValueOnce({
+        start: vi.fn().mockResolvedValue(undefined),
+        pause: vi.fn(),
+        resume: vi.fn(),
+        stop: vi.fn().mockResolvedValue(mockBlob),
+        restart: vi.fn(),
+      } as any)
+
+      vi.mocked(apiModule.summarizeAudio).mockRejectedValueOnce(
+        Object.assign(new Error(msg), { status: 422 }),
+      )
+
+      const { result } = renderHook(() => usePipeline())
+
+      await act(async () => {
+        await result.current.start()
+        await result.current.finish(10)
+      })
+
+      await act(async () => {
+        await result.current.submit()
+      })
+
+      expect(result.current.state.status).toBe('review')
+      if (result.current.state.status === 'review') {
+        expect(result.current.state.submitError).toBe(msg)
       }
     })
 
