@@ -1,18 +1,32 @@
 import type { NextFunction, Request, Response } from 'express'
+import { z } from 'zod'
 import { AppError } from '../errors/AppError.js'
 import { summarizeTranscript, transcribeAudio } from '../services/openai.provider.js'
+import { deleteObject, getObjectBuffer } from '../services/storage.service.js'
+import { mimeTypeFromKey } from '../utils/mimeType.js'
+
+const BodySchema = z.object({
+  key: z.string().min(1).startsWith('uploads/', { message: 'Invalid key' }),
+  customInstructions: z.string().optional(),
+})
 
 export async function handleSummarize(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.file) {
-      return next(new AppError('No audio file provided', 400))
-    }
+  const result = BodySchema.safeParse(req.body)
+  if (!result.success) {
+    return next(new AppError(result.error.issues[0].message, 400))
+  }
 
-    const transcript = await transcribeAudio(req.file.buffer, req.file.mimetype)
-    const summary = await summarizeTranscript(transcript, req.body?.customInstructions)
+  const { key, customInstructions } = result.data
+
+  try {
+    const buffer = await getObjectBuffer(key)
+    const transcript = await transcribeAudio(buffer, mimeTypeFromKey(key))
+    const summary = await summarizeTranscript(transcript, customInstructions)
 
     res.json({ transcript, summary })
   } catch (err) {
     next(err)
+  } finally {
+    deleteObject(key).catch((e) => console.error('[s3] deleteObject failed:', e))
   }
 }

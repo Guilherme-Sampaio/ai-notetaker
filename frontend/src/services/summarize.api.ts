@@ -1,4 +1,5 @@
 import type { ProcessResponse } from '../types/summary.types'
+import { getUploadUrl, uploadToS3 } from './storage.api'
 
 const API_BASE = '/api'
 
@@ -6,15 +7,15 @@ export async function summarizeAudio(
   blob: Blob,
   customInstructions?: string,
 ): Promise<ProcessResponse> {
-  const form = new FormData()
-  form.append('audio', blob, 'recording.webm')
-  if (customInstructions?.trim()) {
-    form.append('customInstructions', customInstructions.trim())
-  }
+  const mimeType = blob.type || 'audio/webm'
+
+  const { uploadUrl, key } = await getUploadUrl(mimeType)
+  await uploadToS3(uploadUrl, blob)
 
   const res = await fetch(`${API_BASE}/summarize`, {
     method: 'POST',
-    body: form,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, customInstructions: customInstructions?.trim() || undefined }),
   })
 
   if (!res.ok) {

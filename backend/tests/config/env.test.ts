@@ -5,6 +5,10 @@ describe('EnvSchema', () => {
   it('accepts minimal valid input', () => {
     const r = EnvSchema.safeParse({
       OPENAI_API_KEY: 'sk-test',
+      S3_BUCKET: 'b',
+      S3_REGION: 'us-east-1',
+      S3_ACCESS_KEY: 'ak',
+      S3_SECRET_KEY: 'sk',
     })
     expect(r.success).toBe(true)
     if (r.success) {
@@ -16,6 +20,10 @@ describe('EnvSchema', () => {
   it('rejects empty OPENAI_API_KEY', () => {
     const r = EnvSchema.safeParse({
       OPENAI_API_KEY: '',
+      S3_BUCKET: 'b',
+      S3_REGION: 'us-east-1',
+      S3_ACCESS_KEY: 'ak',
+      S3_SECRET_KEY: 'sk',
     })
     expect(r.success).toBe(false)
   })
@@ -24,6 +32,10 @@ describe('EnvSchema', () => {
     const r = EnvSchema.safeParse({
       OPENAI_API_KEY: 'sk-test',
       FRONTEND_URL: 'not-a-url',
+      S3_BUCKET: 'b',
+      S3_REGION: 'us-east-1',
+      S3_ACCESS_KEY: 'ak',
+      S3_SECRET_KEY: 'sk',
     })
     expect(r.success).toBe(false)
   })
@@ -32,6 +44,10 @@ describe('EnvSchema', () => {
     const r = EnvSchema.safeParse({
       OPENAI_API_KEY: 'sk-test',
       PORT: '4000',
+      S3_BUCKET: 'b',
+      S3_REGION: 'us-east-1',
+      S3_ACCESS_KEY: 'ak',
+      S3_SECRET_KEY: 'sk',
     })
     expect(r.success).toBe(true)
     if (r.success) {

@@ -14,35 +14,34 @@ vi.mock('../../src/services/openai.provider.js', () => ({
   }),
 }))
 
+vi.mock('../../src/services/storage.service.js', () => ({
+  getObjectBuffer: vi.fn().mockResolvedValue(Buffer.from('fake')),
+  deleteObject: vi.fn().mockResolvedValue(undefined),
+}))
+
 function buildApp() {
   const app = express()
+  app.use(express.json())
   app.use('/api/summarize', summarizeRouter)
   app.use(errorHandler)
   return app
 }
 
 describe('POST /api/summarize/', () => {
-  it('returns 415 for unsupported mime type', async () => {
-    const app = buildApp()
-    const res = await request(app)
-      .post('/api/summarize/')
-      .attach('audio', Buffer.from('x'), { filename: 'x.png', contentType: 'image/png' })
-
-    expect(res.status).toBe(415)
-  })
-
-  it('returns 400 when audio field is missing', async () => {
-    const app = buildApp()
-    const res = await request(app).post('/api/summarize/').send({})
-
+  it('returns 400 when key is missing', async () => {
+    const res = await request(buildApp()).post('/api/summarize/').send({})
     expect(res.status).toBe(400)
   })
 
-  it('returns 200 with transcript and summary for wav', async () => {
-    const app = buildApp()
-    const res = await request(app)
+  it('returns 400 when key does not start with uploads/', async () => {
+    const res = await request(buildApp()).post('/api/summarize/').send({ key: 'evil/path' })
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 200 with transcript and summary for a valid key', async () => {
+    const res = await request(buildApp())
       .post('/api/summarize/')
-      .attach('audio', Buffer.from('fake'), { filename: 'clip.wav', contentType: 'audio/wav' })
+      .send({ key: 'uploads/abc-123.webm' })
 
     expect(res.status).toBe(200)
     expect(res.body).toEqual({

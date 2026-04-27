@@ -4,6 +4,7 @@ import { env } from './config/env.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import summarizeRouter from './routes/summarize.routes.js'
 import notesRouter from './routes/notes.routes.js'
+import uploadUrlRouter from './routes/uploadUrl.routes.js'
 
 const app = express()
 
@@ -21,6 +22,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' })
 })
 
+app.use('/api/upload-url', uploadUrlRouter)
 app.use('/api/summarize', summarizeRouter)
 app.use('/api/notes', notesRouter)
 

@@ -1,3 +1,7 @@
 process.env['OPENAI_API_KEY'] ??= 'test-key-not-used-for-real-requests'
 process.env['FRONTEND_URL'] ??= 'http://localhost:5173'
 process.env['PORT'] ??= '3001'
+process.env['S3_BUCKET'] ??= 'test-bucket'
+process.env['S3_REGION'] ??= 'us-east-1'
+process.env['S3_ACCESS_KEY'] ??= 'test-access-key'
+process.env['S3_SECRET_KEY'] ??= 'test-secret-key'
