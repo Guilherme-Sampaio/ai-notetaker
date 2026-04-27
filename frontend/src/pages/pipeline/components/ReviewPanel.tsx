@@ -68,8 +68,14 @@ export function ReviewPanel({ state, submit, discard }: Props) {
         </div>
       </div>
 
+      {submitError && (
+        <p role="alert" className="sr-only">
+          {submitError}
+        </p>
+      )}
+
       {isProcessing && (
-        <div aria-live="polite" className="flex flex-col items-center gap-1 text-center">
+        <div aria-live="polite" aria-busy="true" aria-atomic="true" className="flex flex-col items-center gap-1 text-center">
           <p className="text-sm text-muted-foreground">Transcribing and summarizing your recording…</p>
           <p className="text-xs text-muted-foreground/70">Keep this tab open — closing it will cancel the process.</p>
         </div>

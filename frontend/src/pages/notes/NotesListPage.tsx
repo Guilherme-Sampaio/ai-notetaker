@@ -20,8 +20,9 @@ export function NotesListPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24">
-        <Loader2 size={24} className="animate-spin text-muted-foreground" />
+      <div aria-live="polite" aria-busy="true" className="flex items-center justify-center py-24">
+        <span className="sr-only">Loading notes…</span>
+        <Loader2 size={24} className="animate-spin text-muted-foreground" aria-hidden />
       </div>
     )
   }
@@ -29,7 +30,7 @@ export function NotesListPage() {
   if (notes.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-24 text-center">
-        <FileText size={40} className="text-muted-foreground" />
+        <FileText size={40} className="text-muted-foreground" aria-hidden />
         <p className="text-foreground font-medium">No notes yet</p>
         <p className="text-sm text-muted-foreground">Record a meeting to get started.</p>
       </div>

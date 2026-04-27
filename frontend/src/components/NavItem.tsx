@@ -20,7 +20,7 @@ export function NavItem({ icon, label, active, onClick }: Props) {
           : 'text-muted-foreground hover:text-foreground hover:bg-accent',
       ].join(' ')}
     >
-      {icon}
+      <span aria-hidden="true">{icon}</span>
       {label}
     </button>
   )

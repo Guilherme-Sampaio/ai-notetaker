@@ -21,9 +21,29 @@ export function NoteDetailModal({ note, onClose }: Props) {
   })
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const dialog = dialogRef.current
+    dialog?.focus()
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return }
+      if (e.key !== 'Tab' || !dialog) return
+
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
+        )
+      )
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus() }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first?.focus() }
+      }
+    }
+
     document.addEventListener('keydown', onKey)
-    dialogRef.current?.focus()
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
@@ -51,7 +71,7 @@ export function NoteDetailModal({ note, onClose }: Props) {
             aria-label="Close"
             className="text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
           >
-            <X size={18} />
+            <X size={18} aria-hidden />
           </button>
         </div>
 
@@ -74,6 +94,7 @@ export function NoteDetailModal({ note, onClose }: Props) {
             <h3 className="text-sm font-semibold text-foreground mb-3">Transcript</h3>
             <div className="rounded-xl border border-border bg-background">
               <div
+                id="full-transcript"
                 className={[
                   'overflow-y-auto transition-all px-4 py-3',
                   transcriptExpanded ? 'max-h-96' : 'max-h-28',
@@ -85,6 +106,8 @@ export function NoteDetailModal({ note, onClose }: Props) {
               </div>
               <button
                 type="button"
+                aria-expanded={transcriptExpanded}
+                aria-controls="full-transcript"
                 onClick={() => setTranscriptExpanded(v => !v)}
                 className="w-full px-4 py-2 text-xs text-muted-foreground hover:text-foreground border-t border-border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-b-xl"
               >

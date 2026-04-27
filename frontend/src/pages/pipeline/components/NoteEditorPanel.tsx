@@ -1,5 +1,5 @@
 import { ArrowLeft, Loader2, Save } from 'lucide-react'
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { toast } from 'sonner'
 import { saveNote } from '../../../services/notes.api'
 import type { SummaryOutput } from '../../../types/summary.types'
@@ -12,10 +12,12 @@ interface EditableSectionProps {
 }
 
 function EditableSection({ title, items, onChange }: EditableSectionProps) {
+  const id = useId()
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="text-sm font-medium text-foreground">{title}</label>
+      <label htmlFor={id} className="text-sm font-medium text-foreground">{title}</label>
       <textarea
+        id={id}
         value={items.join('\n')}
         onChange={e => onChange(e.target.value.split('\n'))}
         rows={3}
@@ -39,6 +41,7 @@ export function NoteEditorPanel({ transcript, summary, onSaved, onDiscard }: Pro
   const [followUpTasks, setFollowUpTasks] = useState(summary.followUpTasks)
   const [resourcesMentioned, setResourcesMentioned] = useState(summary.resourcesMentioned)
   const [saving, setSaving] = useState(false)
+  const [transcriptOpen, setTranscriptOpen] = useState(false)
 
   const handleSave = async () => {
     setSaving(true)
@@ -72,14 +75,22 @@ export function NoteEditorPanel({ transcript, summary, onSaved, onDiscard }: Pro
         <EditableSection title="Resources Mentioned" items={resourcesMentioned} onChange={setResourcesMentioned} />
       </div>
 
-      <details className="text-sm">
-        <summary className="cursor-pointer text-muted-foreground hover:text-foreground select-none">
-          View transcript
-        </summary>
-        <p className="mt-2 text-foreground bg-muted rounded-lg p-3 whitespace-pre-wrap leading-relaxed">
-          {transcript}
-        </p>
-      </details>
+      <div className="text-sm">
+        <button
+          type="button"
+          aria-expanded={transcriptOpen}
+          aria-controls="editor-transcript"
+          onClick={() => setTranscriptOpen(v => !v)}
+          className="cursor-pointer text-muted-foreground hover:text-foreground select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+        >
+          {transcriptOpen ? 'Hide transcript' : 'View transcript'}
+        </button>
+        {transcriptOpen && (
+          <p id="editor-transcript" className="mt-2 text-foreground bg-muted rounded-lg p-3 whitespace-pre-wrap leading-relaxed">
+            {transcript}
+          </p>
+        )}
+      </div>
 
       <div className="flex items-center gap-3 flex-wrap">
         <ToolbarBtn

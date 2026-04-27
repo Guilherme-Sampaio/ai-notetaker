@@ -65,9 +65,8 @@ export function usePipeline(): UsePipelineReturn {
       setState({ status: 'done', transcript: result.transcript, summary: result.summary })
     } catch (err) {
       const message = (err as Error).message
-      const status = (err as { status?: number }).status
       toast.error('Processing failed', { description: message })
-      setState({ status: 'review', blob, durationSeconds, ...(status === 422 && { submitError: message }) })
+      setState({ status: 'review', blob, durationSeconds, submitError: message })
     }
   }, [state])
 

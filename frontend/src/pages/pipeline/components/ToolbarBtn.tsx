@@ -21,7 +21,7 @@ export function ToolbarBtn({
           : 'bg-secondary text-secondary-foreground hover:bg-secondary/80 focus-visible:ring-ring',
       ].join(' ')}
     >
-      {icon}
+      <span aria-hidden="true">{icon}</span>
       {label}
     </button>
   )

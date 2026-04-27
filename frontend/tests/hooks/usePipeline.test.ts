@@ -363,7 +363,7 @@ describe('usePipeline', () => {
       expect(toast.error).toHaveBeenCalledWith('Processing failed', expect.any(Object))
       if (result.current.state.status === 'review') {
         expect(result.current.state.blob).toEqual(mockBlob)
-        expect(result.current.state.submitError).toBeUndefined()
+        expect(result.current.state.submitError).toBe(errorMessage)
       }
     })
 

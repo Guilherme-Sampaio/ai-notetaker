@@ -28,7 +28,7 @@ export function NoteCard({ note, onClick }: Props) {
       className="w-full text-left rounded-xl border border-border bg-card p-4 flex flex-col gap-2 shadow-sm hover:border-primary/50 hover:shadow-md transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <div className="flex items-center gap-2 text-muted-foreground">
-        <FileText size={14} />
+        <FileText size={14} aria-hidden />
         <span className="text-xs">{date}</span>
       </div>
       {preview.length > 0 ? (

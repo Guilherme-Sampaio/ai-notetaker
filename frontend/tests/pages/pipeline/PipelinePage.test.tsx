@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { MemoryRouter } from 'react-router-dom'
+import { createMemoryRouter, RouterProvider } from 'react-router-dom'
 import { PipelinePage } from '../../../src/pages/pipeline/PipelinePage'
 import { usePipeline } from '../../../src/hooks/usePipeline'
 import type { UsePipelineReturn } from '../../../src/hooks/usePipeline'
@@ -42,11 +42,10 @@ function basePipeline(overrides: Partial<UsePipelineReturn> = {}): UsePipelineRe
 }
 
 function renderScreen() {
-  return render(
-    <MemoryRouter>
-      <PipelinePage />
-    </MemoryRouter>,
-  )
+  const router = createMemoryRouter([{ path: '/record', element: <PipelinePage /> }], {
+    initialEntries: ['/record'],
+  })
+  return render(<RouterProvider router={router} />)
 }
 
 describe('PipelineScreen', () => {

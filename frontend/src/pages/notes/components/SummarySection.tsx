@@ -11,7 +11,7 @@ export function SummarySection({ title, items }: Props) {
       <ul className="flex flex-col gap-1">
         {items.map((item, i) => (
           <li key={i} className="text-sm text-foreground flex gap-2">
-            <span className="text-muted-foreground shrink-0">•</span>
+            <span className="text-muted-foreground shrink-0" aria-hidden>•</span>
             <span>{item}</span>
           </li>
         ))}
