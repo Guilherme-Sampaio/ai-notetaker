@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { summarizeAudio } from '../../src/services/summarize.api'
+import { streamSummarize } from '../../src/services/summarize.api'
 import { getUploadUrl, uploadToS3 } from '../../src/services/storage.api'
 
 vi.mock('../../src/services/storage.api', () => ({
@@ -7,17 +7,26 @@ vi.mock('../../src/services/storage.api', () => ({
   uploadToS3: vi.fn(),
 }))
 
-describe('summarizeAudio', () => {
+function sseMessage(event: string, data: object) {
+  return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`
+}
+
+async function collectStream(blob: Blob, instructions?: string) {
+  const events: unknown[] = []
+  for await (const ev of streamSummarize(blob, instructions)) {
+    events.push(ev)
+  }
+  return events
+}
+
+describe('streamSummarize', () => {
   let fetchMock: ReturnType<typeof vi.fn>
 
-  const mockSummaryResponse = {
-    transcript: 'Test transcript',
-    summary: {
-      keyDecisions: [] as string[],
-      upcomingDeadlines: [] as string[],
-      followUpTasks: [] as string[],
-      resourcesMentioned: [] as string[],
-    },
+  const summary = {
+    keyDecisions: [] as string[],
+    upcomingDeadlines: [] as string[],
+    followUpTasks: [] as string[],
+    resourcesMentioned: [] as string[],
   }
 
   beforeEach(() => {
@@ -34,172 +43,94 @@ describe('summarizeAudio', () => {
     vi.clearAllMocks()
   })
 
-  describe('successful requests', () => {
-    it('gets presigned URL, uploads to S3, then POSTs summarize with JSON body', async () => {
-      const audioBlob = new Blob(['audio data'], { type: 'audio/webm' })
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        json: vi.fn().mockResolvedValueOnce(mockSummaryResponse),
-      })
+  it('yields uploading then SSE stage and done events', async () => {
+    const blob = new Blob(['x'], { type: 'audio/webm' })
+    const sse =
+      sseMessage('stage', { stage: 'transcribing' }) +
+      sseMessage('stage', { stage: 'summarizing' }) +
+      sseMessage('done', { transcript: 'T', summary })
 
-      const result = await summarizeAudio(audioBlob)
-
-      expect(getUploadUrl).toHaveBeenCalledWith('audio/webm')
-      expect(uploadToS3).toHaveBeenCalledWith('https://s3.example/presigned', audioBlob)
-      expect(result).toEqual(mockSummaryResponse)
-      expect(fetchMock).toHaveBeenCalledTimes(1)
-      expect(fetchMock).toHaveBeenCalledWith('/api/summarize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'uploads/test-id.webm' }),
-      })
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      body: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(sse))
+          controller.close()
+        },
+      }),
     })
 
-    it('uses audio/webm when blob.type is empty', async () => {
-      const audioBlob = new Blob(['audio data'])
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        json: vi.fn().mockResolvedValueOnce({ ...mockSummaryResponse, transcript: 'T' }),
-      })
+    const events = await collectStream(blob)
 
-      await summarizeAudio(audioBlob)
-
-      expect(getUploadUrl).toHaveBeenCalledWith('audio/webm')
-    })
-
-    it('includes trimmed customInstructions in JSON body', async () => {
-      const audioBlob = new Blob(['x'], { type: 'audio/webm' })
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        json: vi.fn().mockResolvedValueOnce(mockSummaryResponse),
-      })
-
-      await summarizeAudio(audioBlob, '  Focus on deadlines  ')
-
-      const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-      expect(JSON.parse(init.body as string)).toEqual({
-        key: 'uploads/test-id.webm',
-        customInstructions: 'Focus on deadlines',
-      })
-    })
-
-    it('omits customInstructions when empty or whitespace only', async () => {
-      const audioBlob = new Blob(['x'], { type: 'audio/webm' })
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        json: vi.fn().mockResolvedValueOnce(mockSummaryResponse),
-      })
-
-      await summarizeAudio(audioBlob, '   ')
-
-      const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
-      expect(JSON.parse(init.body as string)).toEqual({
-        key: 'uploads/test-id.webm',
-      })
+    expect(events[0]).toEqual({ event: 'stage', stage: 'uploading' })
+    expect(events[1]).toEqual({ event: 'stage', stage: 'transcribing' })
+    expect(events[2]).toEqual({ event: 'stage', stage: 'summarizing' })
+    expect(events[3]).toEqual({ event: 'done', transcript: 'T', summary })
+    expect(fetchMock).toHaveBeenCalledWith('/api/summarize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'uploads/test-id.webm' }),
     })
   })
 
-  describe('error handling', () => {
-    it('throws error on non-ok summarize response', async () => {
-      const audioBlob = new Blob(['audio data'], { type: 'audio/webm' })
-      fetchMock.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        text: vi.fn().mockResolvedValueOnce('Internal Server Error'),
-      })
-
-      await expect(summarizeAudio(audioBlob)).rejects.toThrow('Processing failed')
+  it('POST body includes trimmed customInstructions', async () => {
+    const blob = new Blob(['x'], { type: 'audio/webm' })
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      body: new ReadableStream({
+        start(c) {
+          c.enqueue(new TextEncoder().encode(sseMessage('done', { transcript: 'x', summary })))
+          c.close()
+        },
+      }),
     })
 
-    it('extracts error message from JSON response', async () => {
-      const audioBlob = new Blob(['audio data'], { type: 'audio/webm' })
-      fetchMock.mockResolvedValueOnce({
-        ok: false,
-        text: vi.fn().mockResolvedValueOnce(JSON.stringify({ message: 'Invalid audio format' })),
-      })
+    await collectStream(blob, '  hi  ')
 
-      await expect(summarizeAudio(audioBlob)).rejects.toThrow('Invalid audio format')
-    })
-
-    it('fallback to error field if message not present', async () => {
-      const audioBlob = new Blob(['audio data'], { type: 'audio/webm' })
-      fetchMock.mockResolvedValueOnce({
-        ok: false,
-        text: vi.fn().mockResolvedValueOnce(JSON.stringify({ error: 'Audio too long' })),
-      })
-
-      await expect(summarizeAudio(audioBlob)).rejects.toThrow('Audio too long')
-    })
-
-    it('uses generic message if JSON parsing fails', async () => {
-      const audioBlob = new Blob(['audio data'], { type: 'audio/webm' })
-      fetchMock.mockResolvedValueOnce({
-        ok: false,
-        text: vi.fn().mockResolvedValueOnce('Not JSON'),
-      })
-
-      await expect(summarizeAudio(audioBlob)).rejects.toThrow('Processing failed. Please try again.')
-    })
-
-    it('uses generic message if response.text() fails', async () => {
-      const audioBlob = new Blob(['audio data'], { type: 'audio/webm' })
-      fetchMock.mockResolvedValueOnce({
-        ok: false,
-        text: vi.fn().mockRejectedValueOnce(new Error('Network error')),
-      })
-
-      await expect(summarizeAudio(audioBlob)).rejects.toThrow('Processing failed. Please try again.')
-    })
-
-    it('throws if summarize fetch fails', async () => {
-      const audioBlob = new Blob(['audio data'], { type: 'audio/webm' })
-      fetchMock.mockRejectedValueOnce(new Error('Network timeout'))
-
-      await expect(summarizeAudio(audioBlob)).rejects.toThrow('Network timeout')
-    })
-
-    it('attaches HTTP status to the thrown Error', async () => {
-      const audioBlob = new Blob(['audio data'], { type: 'audio/webm' })
-      fetchMock.mockResolvedValueOnce({
-        ok: false,
-        status: 422,
-        text: vi.fn().mockResolvedValueOnce(JSON.stringify({ message: 'Unprocessable' })),
-      })
-      try {
-        await summarizeAudio(audioBlob)
-        expect.fail('expected rejection')
-      } catch (e) {
-        expect(e).toBeInstanceOf(Error)
-        expect((e as Error & { status?: number }).status).toBe(422)
-        expect((e as Error).message).toBe('Unprocessable')
-      }
-    })
-
-    it('handles empty error body', async () => {
-      const audioBlob = new Blob(['audio data'], { type: 'audio/webm' })
-      fetchMock.mockResolvedValueOnce({
-        ok: false,
-        text: vi.fn().mockResolvedValueOnce(''),
-      })
-
-      await expect(summarizeAudio(audioBlob)).rejects.toThrow('Processing failed. Please try again.')
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(init.body as string)).toEqual({
+      key: 'uploads/test-id.webm',
+      customInstructions: 'hi',
     })
   })
 
-  describe('API endpoint', () => {
-    it('calls /api/summarize with POST', async () => {
-      const audioBlob = new Blob(['audio data'], { type: 'audio/webm' })
-      fetchMock.mockResolvedValueOnce({
-        ok: true,
-        json: vi.fn().mockResolvedValueOnce(mockSummaryResponse),
-      })
+  it('parses SSE split across chunk boundaries', async () => {
+    const blob = new Blob(['x'])
+    const msg = sseMessage('done', { transcript: 'x', summary })
+    const mid = Math.floor(msg.length / 2)
+    const part1 = msg.slice(0, mid)
+    const part2 = msg.slice(mid)
 
-      await summarizeAudio(audioBlob)
-
-      expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('/api/summarize'),
-        expect.objectContaining({ method: 'POST' }),
-      )
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      body: new ReadableStream({
+        start(c) {
+          c.enqueue(new TextEncoder().encode(part1))
+          c.enqueue(new TextEncoder().encode(part2))
+          c.close()
+        },
+      }),
     })
+
+    const events = await collectStream(blob)
+    expect(events.some((e) => (e as { event: string }).event === 'done')).toBe(true)
+  })
+
+  it('throws when response is not ok', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, body: new ReadableStream() })
+
+    await expect(collectStream(new Blob())).rejects.toThrow('Processing failed. Please try again.')
+  })
+
+  it('throws when response has no body', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: true, body: null })
+
+    await expect(collectStream(new Blob())).rejects.toThrow('Processing failed. Please try again.')
+  })
+
+  it('throws when fetch rejects', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('network'))
+
+    await expect(collectStream(new Blob())).rejects.toThrow('network')
   })
 })

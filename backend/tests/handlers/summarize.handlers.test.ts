@@ -12,6 +12,15 @@ const emptySummary = {
   resourcesMentioned: [] as string[],
 }
 
+function sseResponse() {
+  const write = vi.fn()
+  const end = vi.fn()
+  const setHeader = vi.fn()
+  const flushHeaders = vi.fn()
+  const res = { setHeader, flushHeaders, write, end, json: vi.fn() } as unknown as Response
+  return { res, write, end }
+}
+
 vi.mock('../../src/services/openai.service.js', () => ({
   transcribeAudio: vi.fn(),
   summarizeTranscript: vi.fn(),
@@ -57,14 +66,13 @@ describe('handleSummarize', () => {
     expect((err as AppError).status).toBe(400)
   })
 
-  it('returns transcript and summary when key is valid', async () => {
+  it('streams SSE stages and done when key is valid', async () => {
     const buffer = Buffer.from([0, 1, 2])
     vi.mocked(getObjectBuffer).mockResolvedValue(buffer)
     vi.mocked(transcribeAudio).mockResolvedValue('hello transcript')
 
     const next = vi.fn()
-    const json = vi.fn()
-    const res = { json } as unknown as Response
+    const { res, write, end } = sseResponse()
     const req = { body: { key: 'uploads/abc.webm' } } as unknown as Request
 
     await handleSummarize(req, res, next as unknown as NextFunction)
@@ -72,7 +80,14 @@ describe('handleSummarize', () => {
     expect(getObjectBuffer).toHaveBeenCalledWith('uploads/abc.webm')
     expect(transcribeAudio).toHaveBeenCalledWith(buffer, 'audio/webm')
     expect(summarizeTranscript).toHaveBeenCalledWith('hello transcript', undefined)
-    expect(json).toHaveBeenCalledWith({ transcript: 'hello transcript', summary: emptySummary })
+
+    const payload = write.mock.calls.map((c) => c[0] as string).join('')
+    expect(payload).toContain('event: stage')
+    expect(payload).toContain('"stage":"transcribing"')
+    expect(payload).toContain('"stage":"summarizing"')
+    expect(payload).toContain('event: done')
+    expect(payload).toContain('"transcript":"hello transcript"')
+    expect(end).toHaveBeenCalledTimes(1)
     expect(next).not.toHaveBeenCalled()
   })
 
@@ -81,8 +96,7 @@ describe('handleSummarize', () => {
     vi.mocked(transcribeAudio).mockResolvedValue('hello transcript')
 
     const next = vi.fn()
-    const json = vi.fn()
-    const res = { json } as unknown as Response
+    const { res, write } = sseResponse()
     const req = {
       body: { key: 'uploads/abc.webm', customInstructions: 'focus' },
     } as unknown as Request
@@ -90,35 +104,42 @@ describe('handleSummarize', () => {
     await handleSummarize(req, res, next as unknown as NextFunction)
 
     expect(summarizeTranscript).toHaveBeenCalledWith('hello transcript', 'focus')
+    expect(write.mock.calls.some((c) => (c[0] as string).includes('event: done'))).toBe(true)
   })
 
-  it('deletes the S3 object even when transcription fails', async () => {
+  it('sends SSE error and ends when transcription fails', async () => {
     vi.mocked(getObjectBuffer).mockResolvedValue(Buffer.from([0]))
     vi.mocked(transcribeAudio).mockRejectedValue(new Error('whisper down'))
 
     const next = vi.fn()
-    const res = { json: vi.fn() } as unknown as Response
+    const { res, write, end } = sseResponse()
     const req = { body: { key: 'uploads/abc.webm' } } as unknown as Request
 
     await handleSummarize(req, res, next as unknown as NextFunction)
 
-    expect(next).toHaveBeenCalled()
+    expect(next).not.toHaveBeenCalled()
+    const out = write.mock.calls.map((c) => c[0] as string).join('')
+    expect(out).toContain('event: error')
+    expect(out).toContain('whisper down')
+    expect(end).toHaveBeenCalledTimes(1)
     await vi.waitFor(() => expect(deleteObject).toHaveBeenCalledWith('uploads/abc.webm'))
   })
 
-  it('forwards errors from summarizeTranscript', async () => {
+  it('sends SSE error when summarizeTranscript fails', async () => {
     vi.mocked(getObjectBuffer).mockResolvedValue(Buffer.from([0]))
     vi.mocked(transcribeAudio).mockResolvedValue('hello')
-    const boom = new Error('summarize failed')
-    vi.mocked(summarizeTranscript).mockRejectedValue(boom)
+    vi.mocked(summarizeTranscript).mockRejectedValue(new Error('summarize failed'))
 
     const next = vi.fn()
-    const res = { json: vi.fn() } as unknown as Response
+    const { res, write, end } = sseResponse()
     const req = { body: { key: 'uploads/abc.wav' } } as unknown as Request
 
     await handleSummarize(req, res, next as unknown as NextFunction)
 
-    expect(next).toHaveBeenCalledWith(boom)
-    expect(res.json).not.toHaveBeenCalled()
+    expect(next).not.toHaveBeenCalled()
+    const out = write.mock.calls.map((c) => c[0] as string).join('')
+    expect(out).toContain('event: error')
+    expect(out).toContain('summarize failed')
+    expect(end).toHaveBeenCalledTimes(1)
   })
 })

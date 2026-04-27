@@ -4,6 +4,7 @@ import { AppError } from '../errors/AppError.js'
 import { summarizeTranscript, transcribeAudio } from '../services/openai.service.js'
 import { deleteObject, getObjectBuffer } from '../services/storage.service.js'
 import { mimeTypeFromKey } from '../utils/mimeType.js'
+import { initSse, sendEvent } from '../utils/sse.js'
 
 const BodySchema = z.object({
   key: z.string().min(1).startsWith('uploads/', { message: 'Invalid key' }),
@@ -18,15 +19,21 @@ export async function handleSummarize(req: Request, res: Response, next: NextFun
 
   const { key, customInstructions } = result.data
 
+  initSse(res)
+
   try {
+    sendEvent(res, 'stage', { stage: 'transcribing' })
     const buffer = await getObjectBuffer(key)
     const transcript = await transcribeAudio(buffer, mimeTypeFromKey(key))
+
+    sendEvent(res, 'stage', { stage: 'summarizing' })
     const summary = await summarizeTranscript(transcript, customInstructions)
 
-    res.json({ transcript, summary })
+    sendEvent(res, 'done', { transcript, summary })
   } catch (err) {
-    next(err)
+    sendEvent(res, 'error', { message: (err as Error).message ?? 'Processing failed' })
   } finally {
+    res.end()
     deleteObject(key).catch((e) => console.error('[s3] deleteObject failed:', e))
   }
 }

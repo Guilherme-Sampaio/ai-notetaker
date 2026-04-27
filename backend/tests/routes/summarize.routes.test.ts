@@ -38,20 +38,18 @@ describe('POST /api/summarize/', () => {
     expect(res.status).toBe(400)
   })
 
-  it('returns 200 with transcript and summary for a valid key', async () => {
+  it('returns 200 SSE stream with done payload for a valid key', async () => {
     const res = await request(buildApp())
       .post('/api/summarize/')
       .send({ key: 'uploads/abc-123.webm' })
 
     expect(res.status).toBe(200)
-    expect(res.body).toEqual({
-      transcript: 'fixture transcript',
-      summary: {
-        keyDecisions: ['d1'],
-        upcomingDeadlines: [],
-        followUpTasks: [],
-        resourcesMentioned: [],
-      },
-    })
+    expect(String(res.headers['content-type'])).toContain('text/event-stream')
+    expect(res.text).toContain('event: stage')
+    expect(res.text).toContain('"stage":"transcribing"')
+    expect(res.text).toContain('"stage":"summarizing"')
+    expect(res.text).toContain('event: done')
+    expect(res.text).toContain('fixture transcript')
+    expect(res.text).toContain('"keyDecisions":["d1"]')
   })
 })

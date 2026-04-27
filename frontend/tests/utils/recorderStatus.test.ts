@@ -34,7 +34,7 @@ describe('getRecorderStatus', () => {
     })
 
     it('should return empty string for processing state', () => {
-      const state: PipelineState = { status: 'processing' }
+      const state: PipelineState = { status: 'processing', stage: 'uploading' }
       const { statusLabel } = getRecorderStatus(state)
       expect(statusLabel).toBe('')
     })
@@ -115,7 +115,7 @@ describe('getRecorderStatus', () => {
     })
 
     it('should return primary color for processing state', () => {
-      const state: PipelineState = { status: 'processing' }
+      const state: PipelineState = { status: 'processing', stage: 'summarizing' }
       const { micColor } = getRecorderStatus(state)
       expect(micColor).toContain('bg-primary')
       expect(micColor).toContain('text-primary-foreground')
@@ -210,7 +210,7 @@ describe('getRecorderStatus', () => {
         { status: 'recording' },
         { status: 'paused' },
         { status: 'review', blob: new Blob(), durationSeconds: 10 },
-        { status: 'processing' },
+        { status: 'processing', stage: 'transcribing' },
         {
           status: 'done',
           transcript: 'test',

@@ -9,6 +9,12 @@ type Props = Pick<UsePipelineReturn, 'submit' | 'discard'> & {
   state: Extract<PipelineState, { status: 'review' | 'processing' }>
 }
 
+const stageLabel: Record<string, string> = {
+  uploading: 'Uploading recording…',
+  transcribing: 'Transcribing audio…',
+  summarizing: 'Generating summary…',
+}
+
 export function ReviewPanel({ state, submit, discard }: Props) {
   const [instructions, setInstructions] = useState('')
   const isProcessing = state.status === 'processing'
@@ -76,7 +82,11 @@ export function ReviewPanel({ state, submit, discard }: Props) {
 
       {isProcessing && (
         <div aria-live="polite" aria-busy="true" aria-atomic="true" className="flex flex-col items-center gap-1 text-center">
-          <p className="text-sm text-muted-foreground">Transcribing and summarizing your recording…</p>
+          <p className="text-sm text-muted-foreground">
+            {state.status === 'processing'
+              ? (stageLabel[state.stage] ?? 'Processing…')
+              : 'Processing…'}
+          </p>
           <p className="text-xs text-muted-foreground/70">Keep this tab open — closing it will cancel the process.</p>
         </div>
       )}

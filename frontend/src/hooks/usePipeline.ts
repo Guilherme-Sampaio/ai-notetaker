@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
-import { summarizeAudio } from '../services/summarize.api'
+import { streamSummarize } from '../services/summarize.api'
 import type { PipelineState } from '../types/pipeline.types'
 import { useRecorder } from './useRecorder'
 
@@ -59,10 +59,20 @@ export function usePipeline(): UsePipelineReturn {
   const submit = useCallback(async (customInstructions?: string) => {
     if (state.status !== 'review') return
     const { blob, durationSeconds } = state
-    setState({ status: 'processing' })
+    setState({ status: 'processing', stage: 'uploading' })
+
     try {
-      const result = await summarizeAudio(blob, customInstructions)
-      setState({ status: 'done', transcript: result.transcript, summary: result.summary })
+      for await (const ev of streamSummarize(blob, customInstructions)) {
+        if (ev.event === 'stage') {
+          setState({ status: 'processing', stage: ev.stage })
+        } else if (ev.event === 'done') {
+          setState({ status: 'done', transcript: ev.transcript, summary: ev.summary })
+          return
+        } else if (ev.event === 'error') {
+          throw new Error(ev.message)
+        }
+      }
+      throw new Error('Stream ended without a result')
     } catch (err) {
       const message = (err as Error).message
       toast.error('Processing failed', { description: message })

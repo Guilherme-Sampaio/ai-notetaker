@@ -12,8 +12,29 @@ vi.mock('sonner', () => ({
 }))
 
 vi.mock('../../src/services/summarize.api', () => ({
-  summarizeAudio: vi.fn(),
+  streamSummarize: vi.fn(),
 }))
+
+function mockStreamSuccess(mockResponse: {
+  transcript: string
+  summary: {
+    keyDecisions: string[]
+    upcomingDeadlines: string[]
+    followUpTasks: string[]
+    resourcesMentioned: string[]
+  }
+}) {
+  return async function* () {
+    yield { event: 'stage' as const, stage: 'uploading' as const }
+    yield { event: 'stage' as const, stage: 'transcribing' as const }
+    yield { event: 'stage' as const, stage: 'summarizing' as const }
+    yield {
+      event: 'done' as const,
+      transcript: mockResponse.transcript,
+      summary: mockResponse.summary,
+    }
+  }
+}
 
 const { mockUseRecorder } = vi.hoisted(() => ({
   mockUseRecorder: vi.fn(() => ({
@@ -32,6 +53,7 @@ vi.mock('../../src/hooks/useRecorder', () => ({
 describe('usePipeline', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(apiModule.streamSummarize).mockReset()
     mockUseRecorder.mockReset()
     mockUseRecorder.mockImplementation(() => ({
       start: vi.fn().mockResolvedValue(undefined),
@@ -273,7 +295,7 @@ describe('usePipeline', () => {
         restart: vi.fn(),
       } as any)
 
-      vi.mocked(apiModule.summarizeAudio).mockResolvedValueOnce(mockResponse)
+      vi.mocked(apiModule.streamSummarize).mockImplementationOnce(mockStreamSuccess(mockResponse))
 
       const { result } = renderHook(() => usePipeline())
 
@@ -315,7 +337,7 @@ describe('usePipeline', () => {
         restart: vi.fn(),
       } as any)
 
-      vi.mocked(apiModule.summarizeAudio).mockResolvedValueOnce(mockResponse)
+      vi.mocked(apiModule.streamSummarize).mockImplementationOnce(mockStreamSuccess(mockResponse))
 
       const { result } = renderHook(() => usePipeline())
 
@@ -329,7 +351,7 @@ describe('usePipeline', () => {
         await result.current.submit(customInstructions)
       })
 
-      expect(apiModule.summarizeAudio).toHaveBeenCalledWith(mockBlob, customInstructions)
+      expect(apiModule.streamSummarize).toHaveBeenCalledWith(mockBlob, customInstructions)
     })
 
     it('should handle processing failure and return to review state', async () => {
@@ -344,7 +366,10 @@ describe('usePipeline', () => {
         restart: vi.fn(),
       } as any)
 
-      vi.mocked(apiModule.summarizeAudio).mockRejectedValueOnce(new Error(errorMessage))
+      vi.mocked(apiModule.streamSummarize).mockImplementationOnce(async function* () {
+        yield { event: 'stage', stage: 'uploading' }
+        throw new Error(errorMessage)
+      })
 
       const { result } = renderHook(() => usePipeline())
 
@@ -378,9 +403,10 @@ describe('usePipeline', () => {
         restart: vi.fn(),
       } as any)
 
-      vi.mocked(apiModule.summarizeAudio).mockRejectedValueOnce(
-        Object.assign(new Error(msg), { status: 422 }),
-      )
+      vi.mocked(apiModule.streamSummarize).mockImplementationOnce(async function* () {
+        yield { event: 'stage', stage: 'uploading' }
+        throw Object.assign(new Error(msg), { status: 422 })
+      })
 
       const { result } = renderHook(() => usePipeline())
 
@@ -406,7 +432,7 @@ describe('usePipeline', () => {
         await result.current.submit()
       })
 
-      expect(apiModule.summarizeAudio).not.toHaveBeenCalled()
+      expect(apiModule.streamSummarize).not.toHaveBeenCalled()
     })
   })
 
@@ -458,7 +484,7 @@ describe('usePipeline', () => {
         restart: vi.fn(),
       } as any)
 
-      vi.mocked(apiModule.summarizeAudio).mockResolvedValueOnce(mockResponse)
+      vi.mocked(apiModule.streamSummarize).mockImplementationOnce(mockStreamSuccess(mockResponse))
 
       const { result } = renderHook(() => usePipeline())
 
@@ -504,7 +530,7 @@ describe('usePipeline', () => {
         restart: vi.fn(),
       } as any)
 
-      vi.mocked(apiModule.summarizeAudio).mockResolvedValueOnce(mockResponse)
+      vi.mocked(apiModule.streamSummarize).mockImplementationOnce(mockStreamSuccess(mockResponse))
 
       const { result } = renderHook(() => usePipeline())
 

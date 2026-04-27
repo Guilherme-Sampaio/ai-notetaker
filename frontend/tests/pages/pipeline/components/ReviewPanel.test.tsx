@@ -222,7 +222,7 @@ describe('ReviewPanel', () => {
 
     it('should be disabled during processing', () => {
       const processingState: Extract<PipelineState, { status: 'processing' }> =
-        { status: 'processing' }
+        { status: 'processing', stage: 'transcribing' }
 
       render(
         <ReviewPanel
@@ -339,7 +339,7 @@ describe('ReviewPanel', () => {
     let processingState: Extract<PipelineState, { status: 'processing' }>
 
     beforeEach(() => {
-      processingState = { status: 'processing' }
+      processingState = { status: 'processing', stage: 'transcribing' }
     })
 
     it('should show "Processing…" button text', () => {
@@ -375,9 +375,7 @@ describe('ReviewPanel', () => {
           discard={mockPipeline.discard}
         />,
       )
-      expect(
-        screen.getByText('Transcribing and summarizing your recording…'),
-      ).toBeInTheDocument()
+      expect(screen.getByText('Transcribing audio…')).toBeInTheDocument()
     })
 
     it('should have aria-live on processing message', () => {
@@ -448,7 +446,7 @@ describe('ReviewPanel', () => {
       expect(screen.getByText(/Send for processing/i)).toBeInTheDocument()
 
       const processingState: Extract<PipelineState, { status: 'processing' }> =
-        { status: 'processing' }
+        { status: 'processing', stage: 'summarizing' }
       rerender(
         <ReviewPanel
           state={processingState}
@@ -507,7 +505,7 @@ describe('ReviewPanel', () => {
 
     it('should announce status changes', () => {
       const processingState: Extract<PipelineState, { status: 'processing' }> =
-        { status: 'processing' }
+        { status: 'processing', stage: 'uploading' }
 
       const { container } = render(
         <ReviewPanel

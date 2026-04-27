@@ -99,15 +99,13 @@ describe('PipelineScreen', () => {
   it('renders ReviewPanel when state is processing', () => {
     mockUsePipeline.mockReturnValue(
       basePipeline({
-        state: { status: 'processing' },
+        state: { status: 'processing', stage: 'transcribing' },
       }),
     )
     renderScreen()
     expect(screen.getByText('Recording ready')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Processing/i })).toBeDisabled()
-    expect(
-      screen.getByText('Transcribing and summarizing your recording…'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Transcribing audio…')).toBeInTheDocument()
   })
 
   it('renders NoteEditorPanel when state is done', () => {
