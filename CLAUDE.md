@@ -9,39 +9,40 @@ The advisor stays present in the conversation. The app handles note-taking.
 ## Pipeline
 
 ```
-Record → Submit → Transcribe → Summarize → Edit
+Record → Review → Upload → Transcribe → Summarize → Edit
 ```
 
 1. **Record** — Browser MediaRecorder captures audio (webm/wav). Full start / pause / resume / restart / stop support.
-2. **Submit** — The recorded Blob is sent as `multipart/form-data` to `POST /api/process`. A single HTTP request stays open for the full pipeline; no polling.
-3. **Transcribe** — Backend pipes the audio buffer directly to OpenAI Whisper. Audio never touches disk (`multer memoryStorage`).
-4. **Summarize** — Whisper transcript is sent to `gpt-5-mini` with a structured prompt that returns JSON.
+2. **Review** — Advisor confirms the recording and optionally adds custom instructions before submitting.
+3. **Upload** — Browser calls `GET /api/upload-url` for a presigned S3 PUT URL, then PUTs the audio blob directly to S3. Audio never passes through the backend server.
+4. **Transcribe + Summarize** — Browser sends `POST /api/summarize` with `{ key, customInstructions? }`. Backend fetches the buffer from S3, transcribes with OpenAI Whisper, summarizes with `gpt-5-mini`, then deletes the S3 object in a `finally` block.
 5. **Edit** — The validated summary drops into a textarea. The advisor edits before saving (in-memory; no persistence).
 
 ## Stack decisions
 
-| Layer | Choice | Reason |
-|---|---|---|
-| Frontend | Vite + React + TypeScript | Fast HMR, first-class TS, minimal config |
-| Styling | Tailwind CSS + shadcn/ui | Accessible primitives out of the box |
-| Backend | Node.js + Express + TypeScript | Simple, well-understood, fast enough |
-| Validation | Zod | Runtime safety for LLM output |
-| File handling | multer memoryStorage | Audio never persists to disk |
-| Tests | Vitest | Works in both browser and Node ESM contexts |
+| Layer          | Choice                            | Reason                                          |
+|----------------|-----------------------------------|-------------------------------------------------|
+| Frontend       | Vite + React + TypeScript         | Fast HMR, first-class TS, minimal config        |
+| Styling        | Tailwind CSS + shadcn/ui          | Accessible primitives out of the box            |
+| Backend        | Node.js + Express + TypeScript    | Simple, well-understood, fast enough            |
+| Validation     | Zod                               | Runtime safety for LLM output and request bodies|
+| Object storage | AWS S3 (presigned URLs)           | Audio goes browser → S3 directly; backend never buffers it |
+| Tests          | Vitest                            | Works in both browser and Node ESM contexts     |
 
 ## Security model
 
-- `multer` uses `memoryStorage()` — audio only ever lives in RAM for the duration of one request
-- `multer` fileFilter whitelists: `audio/webm`, `audio/wav`, `audio/mp4`, `audio/mpeg`
-- 25 MB upload limit on audio; 1 MB limit on JSON body
-- CORS origin is set from `FRONTEND_URL` env var — never hardcoded
-- All env vars are validated at startup in `backend/src/config/env.ts` — the server refuses to boot with missing required vars
-- No route returns audio to the client
-- No OpenAI key in any frontend code
+- Audio is uploaded directly from the browser to S3 using a presigned PUT URL (5-minute expiry). The backend never buffers audio.
+- S3 object key is validated server-side (`key.startsWith('uploads/')`) before any AWS call — prevents path traversal.
+- Audio is deleted from S3 in a `finally` block immediately after processing — no long-term PII residency.
+- `GET /api/upload-url` validates MIME type against an allowlist: `audio/webm`, `audio/wav`, `audio/mp4`, `audio/mpeg`, `application/octet-stream` (codec parameters stripped before matching).
+- CORS origin is set from `FRONTEND_URL` env var — never hardcoded.
+- All env vars are validated at startup in `backend/src/config/env.ts` — the server refuses to boot with missing required vars.
+- No route returns audio to the client.
+- No OpenAI key or AWS credentials in any frontend code.
 
-## Prompts layer
+## AI layer
 
-`backend/src/prompts/` contains three files treated as first-class code:
+`backend/src/ai/` contains three files treated as first-class code:
 
 - `summarize.prompt.ts` — `SYSTEM_PROMPT` constant + `buildUserPrompt(transcript, customInstructions?)`. Instructs the model to return **only** valid JSON.
 - `summarize.schema.ts` — Zod schema for `SummaryOutput`. Single source of truth for the shape.
@@ -56,18 +57,39 @@ type PipelineState =
   | { status: 'idle' }
   | { status: 'recording' }
   | { status: 'paused' }
+  | { status: 'review'; blob: Blob; durationSeconds: number; submitError?: string }
   | { status: 'processing' }
   | { status: 'done'; transcript: string; summary: SummaryOutput }
   | { status: 'error'; stage: string; message: string }
 ```
 
+## Frontend service layer
+
+All backend HTTP calls go through dedicated service files in `frontend/src/services/`:
+
+- `storage.api.ts` — `getUploadUrl(mimeType)`, `uploadToS3(url, blob)`
+- `summarize.api.ts` — `summarizeAudio(blob, customInstructions?)` — orchestrates the full upload + summarize flow
+- `notes.api.ts` — `createNote(...)`, `getNotes()`
+
+Components never call `fetch` directly.
+
 ## API contract
 
-### POST /api/process
+### GET /api/upload-url
 
-Request: `multipart/form-data`
-- `audio` — audio file (webm/wav/mp4/mpeg, max 25 MB)
-- `customInstructions` — string, optional
+Query: `mimeType=audio/webm` (or wav/mp4/mpeg)
+
+Response `200`:
+```json
+{ "uploadUrl": "https://s3.amazonaws.com/...", "key": "uploads/<uuid>.webm" }
+```
+
+### POST /api/summarize
+
+Request: `application/json`
+```json
+{ "key": "uploads/<uuid>.webm", "customInstructions": "optional string" }
+```
 
 Response `200`:
 ```json
@@ -90,9 +112,22 @@ Response `200`: `{ "status": "ok" }`
 
 - Route handlers call `next(error)` — never `res.status()` inline
 - Central `errorHandler` middleware owns all error responses
-- All backend calls from the frontend go through `frontend/src/services/api.ts` only
 - Use shadcn components — do not create custom UI primitives
 - State discriminated union: always handle every case explicitly
+
+## Environment variables
+
+Required in `backend/.env`:
+
+```
+OPENAI_API_KEY=          # real key or "mock"
+S3_BUCKET=
+S3_REGION=
+S3_ACCESS_KEY=
+S3_SECRET_KEY=
+FRONTEND_URL=            # defaults to http://localhost:5173
+PORT=                    # defaults to 3001
+```
 
 ## Out of scope
 
@@ -102,7 +137,7 @@ Response `200`: `{ "status": "ok" }`
 - Mobile-native features
 - Analytics or logging infrastructure
 - Streaming transcription
-- Retry storage for failed Whisper calls
+- S3 lifecycle rules for orphaned objects
 
 ## Running locally
 
@@ -110,9 +145,8 @@ Response `200`: `{ "status": "ok" }`
 # 1. Install dependencies
 npm install
 
-# 2. Copy env file and add your OpenAI key
+# 2. Copy env file and fill in values
 cp .env.example backend/.env
-# edit backend/.env and set OPENAI_API_KEY
 
 # 3. Start both servers
 npm run dev
