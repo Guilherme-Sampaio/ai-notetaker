@@ -69,3 +69,13 @@ Audio lives in S3 only for the duration of one request, then is permanently dele
 - Saved notes are lost on server restart and are shared across all clients (no advisor scoping). Auth is out of scope.
 - Custom instructions apply at the review step, not as a "regenerate" action on the editor.
 - Single-user only — no auth, no sessions (explicitly out of scope).
+
+## Demo
+
+https://github.com/user-attachments/assets/305f9e24-7616-473f-b0b1-c05add99ab55
+
+> **Note:** The transcription step in this recording was mocked with a pre-written transcript to keep the demo short. All other stages — upload to S3, summarization, editing, and saving — run against real services.
+
+---
+
+*Built with effort and coffee ☕☕☕*
