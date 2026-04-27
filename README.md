@@ -1,6 +1,6 @@
 # AI Notetaker
 
-Single-page web app for academic advisors. Records a meeting, transcribes it with OpenAI's `gpt-4o-transcribe`, summarizes it with `gpt-5-mini`, and inserts a structured summary into an editable note. Saved notes are listed on a separate `/notes` page.
+Single-page web app for academic advisors. Records a meeting, transcribes it with OpenAI's `gpt-4o-transcribe`, summarizes it with `gpt-5.4-nano`, and inserts a structured summary into an editable note. Saved notes are listed on a separate `/notes` page.
 
 ## Running locally
 
@@ -58,7 +58,7 @@ Audio lives in S3 only for the duration of one request, then is permanently dele
 
 ## Real vs mocked
 
-- **`gpt-4o-transcribe`** and **`gpt-5-mini`** — both require a real `OPENAI_API_KEY`. `gpt-5-mini` is called with `response_format: { type: 'json_schema', strict: true }`, so OpenAI enforces the output shape before returning. Zod validates at the boundary as defense in depth.
+- **`gpt-4o-transcribe`** and **`gpt-5.4-nano`** — both require a real `OPENAI_API_KEY`. `gpt-5.4-nano` is called with `response_format: { type: 'json_schema', strict: true }`, so OpenAI enforces the output shape before returning. Zod validates at the boundary as defense in depth.
 - **Database for notes** — deliberately omitted. Notes live in an in-process `Map` (`backend/src/db/notes.store.ts`). Survive page reloads, vanish on server restart. The store interface (`insert / findAll / findById / clear`) is ready to swap for DynamoDB.
 
 ## Known gaps

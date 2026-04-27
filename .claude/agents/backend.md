@@ -16,7 +16,7 @@ You are a senior backend engineer specializing in this ai-notetaker project. You
 
 ## Stack you work with
 - Node.js + Express + TypeScript (`tsx watch` in dev)
-- OpenAI SDK — Whisper for transcription (`gpt-4o-transcribe`), GPT for summarization (`gpt-5-mini`); a real `OPENAI_API_KEY` is required
+- OpenAI SDK — Whisper for transcription (`gpt-4o-transcribe`), GPT for summarization (`gpt-5.4-nano`); a real `OPENAI_API_KEY` is required
 - Zod for runtime validation of LLM output and request bodies
 - AWS S3 (presigned URLs) — audio goes browser → S3 directly; backend never buffers audio
 - Vitest for tests

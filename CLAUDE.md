@@ -15,7 +15,7 @@ Record → Review → Upload → Transcribe → Summarize → Edit
 1. **Record** — Browser MediaRecorder captures audio (webm/wav). Full start / pause / resume / restart / stop support.
 2. **Review** — Advisor confirms the recording and optionally adds custom instructions before submitting.
 3. **Upload** — Browser calls `GET /api/upload-url` for a presigned S3 PUT URL, then PUTs the audio blob directly to S3. Audio never passes through the backend server.
-4. **Transcribe + Summarize** — Browser sends `POST /api/summarize` with `{ key, customInstructions? }`. Backend fetches the buffer from S3, transcribes with OpenAI Whisper, summarizes with `gpt-5-mini`, then deletes the S3 object in a `finally` block.
+4. **Transcribe + Summarize** — Browser sends `POST /api/summarize` with `{ key, customInstructions? }`. Backend fetches the buffer from S3, transcribes with OpenAI Whisper, summarizes with `gpt-5.4-nano`, then deletes the S3 object in a `finally` block.
 5. **Edit** — The validated summary drops into a textarea. The advisor edits before saving (in-memory; no persistence).
 
 ## Stack decisions

@@ -34,7 +34,7 @@ The same `SummaryOutputSchema` is also reused by `notes.handler.ts` to validate 
 
 Zod also validates all request bodies and query parameters: `BodySchema` in `summarize.handler.ts` enforces `key.startsWith('uploads/')`, and `QuerySchema` in `uploadUrl.handler.ts` enforces `mimeType` presence.
 
-In practice, gpt-5-mini is called with `response_format: { type: 'json_schema', strict: true }`, which means OpenAI itself enforces the shape before returning. Zod is defense in depth: cheap to keep, the only thing that catches a model regression or a future provider switch.
+In practice, gpt-5.4-nano is called with `response_format: { type: 'json_schema', strict: true }`, which means OpenAI itself enforces the shape before returning. Zod is defense in depth: cheap to keep, the only thing that catches a model regression or a future provider switch.
 
 ## Vitest + supertest + Testing Library
 
