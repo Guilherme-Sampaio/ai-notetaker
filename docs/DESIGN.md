@@ -56,9 +56,7 @@
 │                                     │  ▼ summarize.handler         │  │
 │                                     │    (validate key,            │  │
 │                                     │     getObjectBuffer,         │  │
-│                                     │     openai.provider ◀──────┐ │  │
-│                                     │     switches by env:        │ │  │
-│                                     │       real ⇄ mock          │ │  │
+│                                     │     openai.service,         │ │  │
 │                                     │     transcribeAudio,        │ │  │
 │                                     │     summarizeTranscript,    │ │  │
 │                                     │     deleteObject [finally]) │ │  │
@@ -156,7 +154,7 @@ All errors funnel through `errorHandler` middleware, which serializes `AppError`
 - **Object deleted in `finally`.** The S3 object is deleted after processing regardless of success or failure. This prevents long-term PII residency even when transcription fails.
 - **Error path simplified.** All errors set `submitError` in the `review` state unconditionally; the prior 422-vs-5xx distinction was fragile and has been removed.
 - **NavigationConfirm guard.** An accessible modal fires when the user tries to leave the pipeline mid-session (`useBlocker` for in-app navigation, `beforeunload` for browser close). Focus trap, Escape cancels, `aria-modal`.
-- **Mock provider behind a runtime switch.** `services/openai.provider.ts` re-exports either `openai.service` or `openai.mock.service` depending on whether `OPENAI_API_KEY === 'mock'`. The route handler is identical in both modes — no `if (mock)` branching downstream.
+- **Real OpenAI API required.** `summarize.handler.ts` imports directly from `openai.service.ts`; there is no mock mode. A real `OPENAI_API_KEY` is required to run the pipeline.
 - **gpt-5-mini in `json_schema` strict mode.** The summary structure is enforced by OpenAI's response_format. Zod still validates the parsed JSON at the boundary as defense in depth, with a safe empty-arrays fallback if the schema ever drifts.
 
 ## What would be built next (two more weeks)

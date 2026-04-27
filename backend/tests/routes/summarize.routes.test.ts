@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { errorHandler } from '../../src/middleware/errorHandler.js'
 import summarizeRouter from '../../src/routes/summarize.routes.js'
 
-vi.mock('../../src/services/openai.provider.js', () => ({
+vi.mock('../../src/services/openai.service.js', () => ({
   transcribeAudio: vi.fn().mockResolvedValue('fixture transcript'),
   summarizeTranscript: vi.fn().mockResolvedValue({
     keyDecisions: ['d1'],

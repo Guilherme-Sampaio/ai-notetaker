@@ -11,7 +11,6 @@ npm install
 # 2. Set up environment
 cp .env.example backend/.env
 # Edit backend/.env — set OPENAI_API_KEY, S3_BUCKET, S3_REGION, S3_ACCESS_KEY, S3_SECRET_KEY
-# Set OPENAI_API_KEY=mock to run without a real key
 
 # 3. Start both servers
 npm run dev
@@ -59,8 +58,7 @@ Audio lives in S3 only for the duration of one request, then is permanently dele
 
 ## Real vs mocked
 
-- **`gpt-4o-transcribe`** — real API. If you don't have a key, set `OPENAI_API_KEY=mock` and `services/openai.provider.ts` swaps in `openai.mock.service.ts`, which returns a canned transcript and summary. The route handler is identical in both modes.
-- **`gpt-5-mini`** — real API (same key). Called with `response_format: { type: 'json_schema', strict: true }`, so OpenAI enforces the output shape before returning. Zod validates at the boundary as defense in depth.
+- **`gpt-4o-transcribe`** and **`gpt-5-mini`** — both require a real `OPENAI_API_KEY`. `gpt-5-mini` is called with `response_format: { type: 'json_schema', strict: true }`, so OpenAI enforces the output shape before returning. Zod validates at the boundary as defense in depth.
 - **Database for notes** — deliberately omitted. Notes live in an in-process `Map` (`backend/src/db/notes.store.ts`). Survive page reloads, vanish on server restart. The store interface (`insert / findAll / findById / clear`) is ready to swap for DynamoDB.
 
 ## Known gaps

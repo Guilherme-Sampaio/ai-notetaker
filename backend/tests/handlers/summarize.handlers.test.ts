@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from 'express'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AppError } from '../../src/errors/AppError.js'
 import { handleSummarize } from '../../src/handlers/summarize.handler.js'
-import { summarizeTranscript, transcribeAudio } from '../../src/services/openai.provider.js'
+import { summarizeTranscript, transcribeAudio } from '../../src/services/openai.service.js'
 import { deleteObject, getObjectBuffer } from '../../src/services/storage.service.js'
 
 const emptySummary = {
@@ -12,7 +12,7 @@ const emptySummary = {
   resourcesMentioned: [] as string[],
 }
 
-vi.mock('../../src/services/openai.provider.js', () => ({
+vi.mock('../../src/services/openai.service.js', () => ({
   transcribeAudio: vi.fn(),
   summarizeTranscript: vi.fn(),
 }))

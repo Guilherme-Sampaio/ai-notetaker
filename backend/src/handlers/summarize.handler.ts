@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express'
 import { z } from 'zod'
 import { AppError } from '../errors/AppError.js'
-import { summarizeTranscript, transcribeAudio } from '../services/openai.provider.js'
+import { summarizeTranscript, transcribeAudio } from '../services/openai.service.js'
 import { deleteObject, getObjectBuffer } from '../services/storage.service.js'
 import { mimeTypeFromKey } from '../utils/mimeType.js'
 

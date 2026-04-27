@@ -120,7 +120,7 @@ Response `200`: `{ "status": "ok" }`
 Required in `backend/.env`:
 
 ```
-OPENAI_API_KEY=          # real key or "mock"
+OPENAI_API_KEY=          # real key required
 S3_BUCKET=
 S3_REGION=
 S3_ACCESS_KEY=
