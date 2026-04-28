@@ -18,6 +18,7 @@ export function useRecorder(): UseRecorderReturn {
   const streamRef = useRef<MediaStream | null>(null)
   const mimeTypeRef = useRef<string>('audio/webm')
 
+  // Lazily acquires the mic stream — reuses it if already open
   const acquireStream = async () => {
     if (!streamRef.current) {
       streamRef.current = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -25,11 +26,13 @@ export function useRecorder(): UseRecorderReturn {
     return streamRef.current
   }
 
+  // Stops all mic tracks so the browser microphone indicator turns off
   const releaseStream = () => {
     streamRef.current?.getTracks().forEach(t => t.stop())
     streamRef.current = null
   }
 
+  // Creates a new MediaRecorder on the given stream and wires up chunk collection
   const attachRecorder = (stream: MediaStream) => {
     const mr = new MediaRecorder(stream)
     mimeTypeRef.current = mr.mimeType
@@ -38,6 +41,7 @@ export function useRecorder(): UseRecorderReturn {
     return mr
   }
 
+  // Acquires the mic, clears any previous chunks, and begins recording
   const start = useCallback(async () => {
     const stream = await acquireStream()
     chunksRef.current = []

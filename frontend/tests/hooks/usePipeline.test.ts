@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { usePipeline } from '../../src/hooks/usePipeline'
 import * as apiModule from '../../src/services/summarize.api'
-import { ApiError } from '../../src/services/ApiError'
+import { ApiError } from '../../src/utils/ApiError'
 import { toast } from 'sonner'
 
 // Mock dependencies

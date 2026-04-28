@@ -1,4 +1,4 @@
-import { ApiError } from './ApiError'
+import { ApiError } from '../utils/ApiError'
 
 const API_BASE = '/api'
 

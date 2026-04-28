@@ -1,5 +1,5 @@
 import type { SummaryOutput } from '../types/summary.types'
-import { ApiError } from './ApiError'
+import { ApiError } from '../utils/ApiError'
 import { getUploadUrl, uploadToS3 } from './storage.api'
 
 const API_BASE = '/api'
@@ -34,6 +34,7 @@ export async function* streamSummarize(
   const decoder = new TextDecoder()
   let buffer = ''
 
+  // SSE parsing loop
   while (true) {
     const { done, value } = await reader.read()
     if (done) break

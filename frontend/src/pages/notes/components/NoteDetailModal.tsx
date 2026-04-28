@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { useFocusTrap } from '../../../hooks/useFocusTrap'
 import type { Note } from '../../../types/summary.types'
 import { SummarySection } from './SummarySection'
 
@@ -20,32 +21,7 @@ export function NoteDetailModal({ note, onClose }: Props) {
     minute: '2-digit',
   })
 
-  useEffect(() => {
-    const dialog = dialogRef.current
-    dialog?.focus()
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { onClose(); return }
-      if (e.key !== 'Tab' || !dialog) return
-
-      const focusable = Array.from(
-        dialog.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])'
-        )
-      )
-      const first = focusable[0]
-      const last = focusable[focusable.length - 1]
-
-      if (e.shiftKey) {
-        if (document.activeElement === first) { e.preventDefault(); last?.focus() }
-      } else {
-        if (document.activeElement === last) { e.preventDefault(); first?.focus() }
-      }
-    }
-
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  useFocusTrap(dialogRef, onClose)
 
   return (
     <div

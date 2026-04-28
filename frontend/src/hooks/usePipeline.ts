@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
-import { ApiError } from '../services/ApiError'
+import { ApiError } from '../utils/ApiError'
 import { streamSummarize } from '../services/summarize.api'
 import type { PipelineState } from '../types/pipeline.types'
 import { useRecorder } from './useRecorder'
