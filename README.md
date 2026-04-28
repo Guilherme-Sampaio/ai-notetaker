@@ -38,28 +38,11 @@ The app has two routes:
 | Object storage | AWS S3 (presigned URLs)          | Audio goes browser → S3 directly; backend never buffers it |
 | Tests         | Vitest + supertest + RTL          | One runner, backend + frontend                             |
 
-## API
-
-| Method | Path                | Purpose                                                               |
-|--------|---------------------|-----------------------------------------------------------------------|
-| GET    | `/api/health`       | Liveness check                                                        |
-| GET    | `/api/upload-url`   | Returns a presigned S3 PUT URL + object key (5-min expiry)            |
-| POST   | `/api/summarize`    | `{ key, customInstructions? }` → `{ transcript, summary }`            |
-| POST   | `/api/notes`        | Persist a note (`{ transcript, summary }`) → `Note` (201)             |
-| GET    | `/api/notes`        | List saved notes (newest first)                                       |
-
-## Upload flow
-
-1. Browser calls `GET /api/upload-url?mimeType=audio/webm` → receives `{ uploadUrl, key }`
-2. Browser PUTs the audio blob directly to S3 using the presigned URL (audio never passes through the backend)
-3. Browser calls `POST /api/summarize` with `{ key }` → backend fetches from S3, transcribes, summarizes, deletes the object
-
-Audio lives in S3 only for the duration of one request, then is permanently deleted.
-
 ## Real vs mocked
 
-- **`gpt-4o-transcribe`** and **`gpt-5.4-nano`** — both require a real `OPENAI_API_KEY`. `gpt-5.4-nano` is called with `response_format: { type: 'json_schema', strict: true }`, so OpenAI enforces the output shape before returning. Zod validates at the boundary as defense in depth.
-- **Database for notes** — deliberately omitted. Notes live in an in-process `Map` (`backend/src/db/notes.store.ts`). Survive page reloads, vanish on server restart. The store interface (`insert / findAll / findById / clear`) is ready to swap for DynamoDB.
+- **`gpt-4o-transcribe`** — real API, no mock. Mocking transcription would hide the cases that matter most: short silences, crosstalk, fast speech. Testing against real audio on a real model is the only way to validate the pipeline end-to-end.
+- **`gpt-5.4-nano` (summarization)** — real API, called with `response_format: { type: 'json_schema', strict: true }` so OpenAI enforces the output shape before returning. Mocking the LLM output would mask prompt-reliability risks — exactly the part most likely to break in production. Zod validates the parsed JSON at the boundary as defense in depth.
+- **Notes persistence** — deliberately in-memory (`Map` in `backend/src/db/notes.store.ts`). Notes survive page reloads but vanish on server restart. The store interface is ready to swap for a real database; adding a DB would have consumed more time than it would have revealed about the interesting parts of the system.
 
 ## Known gaps
 

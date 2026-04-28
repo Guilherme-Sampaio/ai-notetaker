@@ -16,17 +16,11 @@ If the browser crashes after the S3 upload but before `POST /api/summarize` is c
 
 **Why accepted:** The failure window is a few seconds and the probability of a browser crash in that window is very low for a demo. The correct mitigation is an S3 lifecycle rule that expires objects under the `uploads/` prefix after a short TTL (e.g., 1 hour) — this is not currently configured but is the documented next step.
 
-## Notes persist in process memory only
+## Notes persist in process memory only; no multi-tenancy
 
-Saved notes live in a `Map<id, Note>` inside the Node process (`backend/src/db/notes.store.ts`). They survive page reloads and navigation, so the `/notes` list is a real working feature — but they vanish on server restart, and they are shared across every client that hits the server (no advisor scoping).
+Saved notes live in a `Map<id, Note>` inside the Node process (`backend/src/db/notes.store.ts`). They survive page reloads and navigation, so the `/notes` list is a real working feature — but they vanish on server restart. There is no concept of a logged-in advisor: all requests are anonymous, and two advisors hitting the same backend would see each other's notes.
 
-**Why accepted:** The challenge spec lists persistent storage as out of scope. Process memory is the cheapest way to make save → list → re-open work end-to-end without dragging in a database. The store is a small interface (`insert / findAll / findById / clear`) so swapping in DynamoDB later is a one-file change. Auth-scoped per-advisor notes is the right next step, but lives behind the auth work that is also out of scope.
-
-## Single-user, no multi-tenancy
-
-There is no concept of a logged-in advisor. All requests are anonymous. Two advisors using the same backend would see each other's saved notes.
-
-**Why accepted:** Auth is explicitly out of scope. For a single-user demo it is invisible; for a real deployment it would be the first thing to fix.
+**Why accepted:** The challenge spec lists both persistent storage and auth as out of scope. Process memory is the cheapest way to make save → list → re-open work end-to-end without a database. The store is a small interface (`insert / findAll / findById / clear`) so swapping in DynamoDB is a one-file change. Auth-scoped per-advisor notes is the right next step, but depends on the auth work that is also out of scope.
 
 ## Batch transcription — no live streaming
 
@@ -38,10 +32,6 @@ The full audio blob is uploaded and transcribed in one shot after the advisor st
 
 An hour-long recording could push the single open `POST /api/summarize` request close to typical proxy timeout limits (60–120 seconds at most cloud load balancers).
 
-**Why accepted:** Academic advisor meetings are typically 15–30 minutes. The transcription model processes approximately 1 minute of audio per 5–10 seconds. A 30-minute meeting processes in well under 60 seconds. The risk is real but low for the target use case.
+**Partial mitigation already in place:** The backend streams SSE stage-level progress events (`uploading`, `transcribing`, `summarizing`) to the client, keeping the connection alive and giving the advisor visible feedback throughout the round trip.
 
-## Custom instructions act before processing, not after
-
-The custom-instructions textarea lives in the review panel (between recording and processing), not in the note editor. An advisor who wants to re-run the summary with different emphasis must record again — there is no "regenerate with new instructions" button on the editor.
-
-**Why accepted:** Re-running the summary against a stored transcript would require either keeping the transcript on the server keyed by some session id (more state, more cleanup) or sending it back from the client (works, but doubles the prompt path). Neither felt warranted for a demo. The review-panel placement also makes the cost model honest: instructions affect the LLM round trip, so they belong at the boundary that triggers it.
+**Why accepted:** Academic advisor meetings are typically 15–30 minutes. The transcription model processes approximately 1 minute of audio per 5–10 seconds. A 30-minute meeting processes in well under 60 seconds. The risk is real but low for the target use case. The correct fix for very long recordings is an async job queue with WebSocket delivery — item #3 on the "next two weeks" list.

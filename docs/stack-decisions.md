@@ -2,7 +2,7 @@
 
 ## React
 
-Component model maps naturally to the pipeline's discrete states — each status (idle, recording, paused, review, processing, done, error) renders a clearly scoped subtree. The hook system (`useRecorder`, `usePipeline`) lets state logic live outside components and be tested independently. React 18's concurrent features aren't needed here, but the ecosystem (Testing Library, shadcn/ui's Radix primitives, react-router) made it the lowest-friction choice for a project with real accessibility requirements.
+Component model maps naturally to the pipeline's discrete states — each status (idle, recording, paused, review, processing, done, error) renders a clearly scoped subtree. The hook system (`useRecorder`, `usePipeline`) lets state logic live outside components and be tested independently. The ecosystem (Testing Library, shadcn/ui's Radix primitives, react-router) made it the lowest-friction choice for a project with real accessibility requirements.
 
 ## TypeScript
 
@@ -10,7 +10,7 @@ Used across both frontend and backend. The `SummaryOutput` Zod schema in `backen
 
 ## Vite
 
-Native ESM in development and esbuild for transforms gives sub-500ms cold starts and instant HMR regardless of dependency tree size. TypeScript path aliases work out of the box. It is the current standard for new React projects and has no maintenance concerns.
+Fast HMR and minimal config. TypeScript path aliases work out of the box. It is the current standard for new React projects and has no maintenance concerns.
 
 ## Node.js and Express
 
@@ -38,4 +38,4 @@ In practice, gpt-5.4-nano is called with `response_format: { type: 'json_schema'
 
 ## Vitest + supertest + Testing Library
 
-Vitest works in both browser-like (jsdom) and Node ESM contexts with one config, which means the same test runner covers backend handlers (with `supertest` mounting `app` directly — no live port) and frontend components (with `@testing-library/react`). One mental model, one CLI, one set of mocks. Backend tests can hit the real Express app without spinning up an HTTP server; frontend hook tests can drive `MediaRecorder` mocks without a real browser.
+One mental model, one CLI, one set of mocks — Vitest works in both browser-like (jsdom) and Node ESM contexts with one config. The same test runner covers backend handlers (with `supertest` mounting `app` directly — no live port) and frontend components (with `@testing-library/react`). Backend tests can hit the real Express app without spinning up an HTTP server; frontend hook tests can drive `MediaRecorder` mocks without a real browser.

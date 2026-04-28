@@ -3,72 +3,28 @@
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                              Browser                                  │
-│                                                                       │
-│   ┌─────────┐                                                         │
-│   │ Sidebar │   /record  ──────────────────────────────────────┐     │
-│   │  nav    │   /notes   ──────────────────────┐               │     │
-│   └─────────┘                                  │               │     │
-│                                                ▼               ▼     │
-│                                       ┌────────────┐  ┌────────────┐ │
-│                                       │  Notes     │  │  Pipeline  │ │
-│                                       │  ListPage  │  │  Page      │ │
-│                                       └─────┬──────┘  └─────┬──────┘ │
-│                                             │               │        │
-│                                             │        ┌──────┴───────┐│
-│                                             │        │ usePipeline  ││
-│                                             │        │ (state FSM)  ││
-│                                             │        │ + useRecorder││
-│                                             │        │  (MediaRec.) ││
-│                                             │        └──────┬───────┘│
-│                              ┌──────────────▼─┐             │        │
-│                              │  notes.api.ts  │    ┌────────▼───────┐│
-│                              │  GET /api/notes│    │ storage.api.ts ││
-│                              │  POST /api/    │    │ GET /api/      ││
-│                              │  notes         │    │ upload-url     ││
-│                              └──────┬─────────┘    │ PUT → S3       ││
-│                                     │              └────────┬───────┘│
-│                                     │              ┌────────▼───────┐│
-│                                     │              │summarize.api.ts││
-│                                     │              │POST /api/      ││
-│                                     │              │summarize       ││
-│                                     │              └────────┬───────┘│
-└─────────────────────────────────────┼─────────────────────-┼────────┘
-                                      │ application/json      │ application/json
-                                      │                       │ { key, customInstructions }
-                     ┌────────────────▼───────────────────────▼───────┐
-                     │                  AWS S3                         │
-                     │  Browser PUTs audio blob via presigned URL      │
-                     │  Backend GETs audio buffer + deletes after use  │
-                     └────────────────────────────────────────────────┘
-┌──────────────────────────────────────────────────────────────────────┐
-│                         Express (Node.js)                             │
-│                                                                       │
-│   ┌─────────────────────────────┐   ┌─────────────────────────────┐  │
-│   │  notes.routes ──▶ handler   │   │ uploadUrl.routes             │  │
-│   │  ▼                          │   │  ▼ uploadUrl.handler         │  │
-│   │  notes.service              │   │    (validate mimeType,       │  │
-│   │  ▼                          │   │     generate presigned URL)  │  │
-│   │  notes.store (Map<id,Note>) │   └─────────────────────────────┘  │
-│   └─────────────────────────────┘   ┌─────────────────────────────┐  │
-│                                     │ summarize.routes             │  │
-│                                     │  ▼ summarize.handler         │  │
-│                                     │    (validate key,            │  │
-│                                     │     getObjectBuffer,         │  │
-│                                     │     openai.service,         │ │  │
-│                                     │     transcribeAudio,        │ │  │
-│                                     │     summarizeTranscript,    │ │  │
-│                                     │     deleteObject [finally]) │ │  │
-│                                     │  ▼                          │ │  │
-│                                     │  parseSummaryResponse       │ │  │
-│                                     │   (Zod, safe fallback)      │ │  │
-│                                     │  ▼                          │ │  │
-│                                     │  { transcript, summary }    │ │  │
-│                                     └─────────────────────────────┘ │  │
-│                                                                      │  │
-│   AppError ──▶ errorHandler middleware ──▶ JSON { error, msg }  ◀───┘  │
-└──────────────────────────────────────────────────────────────────────┘
+┌─────────────────────── Browser ────────────────────────────┐
+│                                                             │
+│  /record ──▶ PipelinePage                                  │
+│               └── usePipeline (FSM) + useRecorder          │
+│                    ├── storage.api.ts  → GET /upload-url   │
+│                    │                  → PUT audio → S3      │
+│                    └── summarize.api.ts → POST /summarize  │
+│                                                             │
+│  /notes  ──▶ NotesListPage                                 │
+│               └── notes.api.ts → GET/POST /notes           │
+└────────────────────────┬────────────────────────────────────┘
+                         │ JSON
+┌────────────────────────▼────────────────────────────────────┐
+│                    Express (Node.js)                         │
+│                                                              │
+│  GET  /upload-url  → validate mimeType → presigned S3 URL   │
+│  POST /summarize   → S3 get → Whisper → GPT → S3 delete     │
+│  GET  /notes       → notes.store (Map)                       │
+│  POST /notes       → notes.store.insert(...)                 │
+│                                                              │
+│  AppError ──▶ errorHandler ──▶ { error, message }           │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ## Pipeline state machine
@@ -76,50 +32,17 @@
 `frontend/src/hooks/usePipeline.ts` owns every transition. Components only render the current state.
 
 ```
-                       start()
-              ┌──────────────────────┐
-              ▼                      │
-┌────────┐  pause()  ┌────────┐  resume()  ┌──────────┐
-│  idle  │◀─────────│ paused │◀──────────▶│ recording │
-└───┬────┘ restart() └────────┘            └─────┬─────┘
-    │                                            │
-    │  discard()/restart()           finish(durationSeconds)
-    │       ▲                                    ▼
-    │       │                            ┌──────────────┐
-    │       │       submit()             │    review    │
-    │       │  ┌────────────────────────▶│ blob,        │
-    │       │  │                         │ durationSec  │
-    │       │  │                         │ submitError? │
-    │       │  │                         └──────┬───────┘
-    │       │  │                                │ submit(customInstructions)
-    │       │  │                                ▼
-    │       │  │                         ┌──────────────┐
-    │       │  │                         │  processing  │
-    │       │  │   error (non-fatal)     │  (upload →   │
-    │       │  └─────────────────────────│   summarize) │
-    │       │   (back to review,         └──────┬───────┘
-    │       │    submitError set)               │ ok
-    │       │                                   ▼
-    │       │                            ┌──────────────┐
-    │       └────────────────────────────│    done      │
-    │       discard / save → /notes      │ transcript,  │
-    │                                    │ summary      │
-    │                                    └──────────────┘
-    │
-    └──── error  (mic permission denied / no audio captured)
+idle ──start()──▶ recording ◀──resume()──▶ paused
+ │                   │ finish()
+ │                   ▼
+ │               review ──submit()──▶ processing
+ │                 ▲                      │ error → back to review
+ │                 │                      │ ok
+ │            discard/restart             ▼
+ │◀───────────────────────────────────  done
+ │
+ └── error (mic denied / no audio captured)
 ```
-
-## API
-
-| Method | Path                | Body / Query                                      | Returns                              |
-|--------|---------------------|---------------------------------------------------|--------------------------------------|
-| GET    | `/api/health`       | —                                                 | `{ status: 'ok' }`                   |
-| GET    | `/api/upload-url`   | `?mimeType=audio/webm`                            | `{ uploadUrl, key }`                 |
-| POST   | `/api/summarize`    | `application/json` `{ key, customInstructions? }` | `{ transcript, summary }`            |
-| POST   | `/api/notes`        | `application/json` `{ transcript, summary }`      | `Note` (201)                         |
-| GET    | `/api/notes`        | —                                                 | `{ notes: Note[] }` (newest first)   |
-
-All errors funnel through `errorHandler` middleware, which serializes `AppError` instances to `{ error, message }` with the right status code and falls back to a generic 500 for unhandled throws. Route handlers always call `next(err)` — never `res.status()` inline.
 
 ## The three most important trade-offs
 
@@ -129,7 +52,7 @@ All errors funnel through `errorHandler` middleware, which serializes `AppError`
 
 **Why:** Simpler client code (no job ID, no polling loop), no server-side job queue, and no state to clean up. A 5-minute meeting completes in 10–20 seconds — well within typical proxy timeouts.
 
-**Cost:** Long meetings risk hitting HTTP timeout limits at the proxy/load-balancer layer. Streaming or a job queue would fix this but doubles system complexity.
+**Cost:** Long meetings (60+ min) risk hitting proxy timeout limits. The current implementation uses SSE to stream stage-level progress events (`uploading`, `transcribing`, `summarizing`) to the client, which keeps the connection alive and gives the advisor visible feedback — but doesn't eliminate the underlying timeout risk for very long recordings. A job queue is the correct fix if timeouts become a real constraint.
 
 ### 2. S3 for audio, in-memory Map for notes
 
@@ -147,22 +70,12 @@ All errors funnel through `errorHandler` middleware, which serializes `AppError`
 
 **Cost:** Deliberate UX regression. For a 30-minute meeting the advisor sees a spinner for 20–40 seconds with no feedback. Streaming transcription is item #1 on the "next two weeks" list.
 
-## Notable design choices made during build
-
-- **Review step before submission.** A `review` state sits between recording and processing. The advisor confirms the recording, optionally adds custom instructions, and only then triggers the LLM round trip. This places the custom-instructions input at the prompt boundary — where it actually changes the outcome.
-- **Presigned URL upload.** Audio goes browser → S3 directly. The backend server never receives audio bytes, which keeps the server stateless with respect to audio and avoids the 25 MB body limit entirely.
-- **Object deleted in `finally`.** The S3 object is deleted after processing regardless of success or failure. This prevents long-term PII residency even when transcription fails.
-- **Error path simplified.** All errors set `submitError` in the `review` state unconditionally; the prior 422-vs-5xx distinction was fragile and has been removed.
-- **NavigationConfirm guard.** An accessible modal fires when the user tries to leave the pipeline mid-session (`useBlocker` for in-app navigation, `beforeunload` for browser close). Focus trap, Escape cancels, `aria-modal`.
-- **Real OpenAI API required.** `summarize.handler.ts` imports directly from `openai.service.ts`; there is no mock mode. A real `OPENAI_API_KEY` is required to run the pipeline.
-- **gpt-5.4-nano in `json_schema` strict mode.** The summary structure is enforced by OpenAI's response_format. Zod still validates the parsed JSON at the boundary as defense in depth, with a safe empty-arrays fallback if the schema ever drifts.
-
 ## What would be built next (two more weeks)
 
 1. **Streaming transcription** — Stream transcription chunks to the client as they arrive, so advisors see partial transcripts in real time instead of waiting for the full round trip.
 
 2. **S3 lifecycle rule** — Configure an expiry policy on the `uploads/` prefix to handle orphaned objects (browser crash after upload, before summarize completes).
 
-3. **Real persistence + auth** — Move `notes.store` behind a DynamoDB-backed implementation (the interface is already a thin abstraction), add advisor identity, and scope notes per advisor.
+3. **Async summarization via WebSocket** — Decouple the summarization pipeline from a single long-lived HTTP request. The client opens a WebSocket connection and triggers processing; the server streams stage events and pushes the final result when ready. This eliminates proxy timeout risk for long meetings and makes retries straightforward.
 
-4. **Search and tagging on the notes list** — Full-text search across transcripts, plus advisor-defined tags (course, term, student) on each note.
+4. **Real persistence + auth** — Move `notes.store` behind a DynamoDB-backed implementation (the interface is already a thin abstraction), add advisor identity, and scope notes per advisor.

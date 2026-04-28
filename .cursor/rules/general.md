@@ -10,7 +10,7 @@ Refer to `CLAUDE.md` at the repo root for full project context before making any
 
 ## API calls
 
-- All backend calls go through `frontend/src/services/api.ts` only
+- All backend calls go through dedicated service files in `frontend/src/services/` — `storage.api.ts`, `summarize.api.ts`, `notes.api.ts`
 - No component or hook should call `fetch`/`axios` directly to the backend
 
 ## UI
@@ -26,5 +26,5 @@ Refer to `CLAUDE.md` at the repo root for full project context before making any
 
 ## Request model
 
-- No polling — the pipeline runs in a single long-lived `POST /api/process` request
-- Do not add timers, intervals, or status-check endpoints
+- The pipeline runs via `POST /api/summarize` using SSE — the server streams stage events (`uploading`, `transcribing`, `summarizing`) and pushes the final result when done
+- No polling, no status-check endpoints — do not add timers or intervals to check processing state

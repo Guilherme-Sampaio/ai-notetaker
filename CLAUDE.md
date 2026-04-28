@@ -104,10 +104,6 @@ Response `200`:
 }
 ```
 
-### GET /api/health
-
-Response `200`: `{ "status": "ok" }`
-
 ## Conventions
 
 - Route handlers call `next(error)` — never `res.status()` inline
