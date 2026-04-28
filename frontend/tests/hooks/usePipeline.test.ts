@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { usePipeline } from '../../src/hooks/usePipeline'
 import * as apiModule from '../../src/services/summarize.api'
+import { ApiError } from '../../src/services/ApiError'
 import { toast } from 'sonner'
 
 // Mock dependencies
@@ -388,7 +389,7 @@ describe('usePipeline', () => {
       expect(toast.error).toHaveBeenCalledWith('Processing failed', expect.any(Object))
       if (result.current.state.status === 'review') {
         expect(result.current.state.blob).toEqual(mockBlob)
-        expect(result.current.state.submitError).toBe(errorMessage)
+        expect(result.current.state.submitError).toBeUndefined()
       }
     })
 
@@ -405,7 +406,7 @@ describe('usePipeline', () => {
 
       vi.mocked(apiModule.streamSummarize).mockImplementationOnce(async function* () {
         yield { event: 'stage', stage: 'uploading' }
-        throw Object.assign(new Error(msg), { status: 422 })
+        throw new ApiError(msg, 422)
       })
 
       const { result } = renderHook(() => usePipeline())

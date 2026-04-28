@@ -28,7 +28,10 @@ describe('storage.api', () => {
     })
 
     it('throws when response is not ok', async () => {
-      fetchMock.mockResolvedValueOnce({ ok: false })
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        json: vi.fn().mockResolvedValueOnce({}),
+      })
 
       await expect(getUploadUrl('audio/webm')).rejects.toThrow('Failed to get upload URL')
     })

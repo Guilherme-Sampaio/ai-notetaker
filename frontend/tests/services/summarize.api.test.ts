@@ -117,13 +117,21 @@ describe('streamSummarize', () => {
   })
 
   it('throws when response is not ok', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: false, body: new ReadableStream() })
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      body: new ReadableStream(),
+      json: vi.fn().mockResolvedValueOnce({}),
+    })
 
     await expect(collectStream(new Blob())).rejects.toThrow('Processing failed. Please try again.')
   })
 
   it('throws when response has no body', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: true, body: null })
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      body: null,
+      json: vi.fn().mockResolvedValueOnce({}),
+    })
 
     await expect(collectStream(new Blob())).rejects.toThrow('Processing failed. Please try again.')
   })

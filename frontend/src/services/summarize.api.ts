@@ -1,4 +1,5 @@
 import type { SummaryOutput } from '../types/summary.types'
+import { ApiError } from './ApiError'
 import { getUploadUrl, uploadToS3 } from './storage.api'
 
 const API_BASE = '/api'
@@ -25,7 +26,8 @@ export async function* streamSummarize(
   })
 
   if (!res.ok || !res.body) {
-    throw new Error('Processing failed. Please try again.')
+    const body = await res.json().catch(() => ({}))
+    throw new ApiError(body.message ?? 'Processing failed. Please try again.', res.status)
   }
 
   const reader = res.body.getReader()

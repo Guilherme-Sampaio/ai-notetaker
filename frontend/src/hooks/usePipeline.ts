@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
+import { ApiError } from '../services/ApiError'
 import { streamSummarize } from '../services/summarize.api'
 import type { PipelineState } from '../types/pipeline.types'
 import { useRecorder } from './useRecorder'
@@ -76,7 +77,13 @@ export function usePipeline(): UsePipelineReturn {
     } catch (err) {
       const message = (err as Error).message
       toast.error('Processing failed', { description: message })
-      setState({ status: 'review', blob, durationSeconds, submitError: message })
+      const isClientError = err instanceof ApiError && err.isClientError
+      setState({
+        status: 'review',
+        blob,
+        durationSeconds,
+        ...(isClientError && { submitError: message }),
+      })
     }
   }, [state])
 
